@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Super Admin | UGB Certificaciones</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Supabase SDK & Config -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabase-config.js"></script>
+    <style>
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 15px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .data-table th {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .small-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+            background: #374151;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+        }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-right: 5px;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-danger {
+            background: rgba(248, 113, 113, 0.2);
+            color: #f87171;
+            border-color: #f87171;
+        }
+
+        .btn-danger:hover {
+            background: rgba(248, 113, 113, 0.4);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-orbs">
+        <div class="orb orb-1"
+            style="background: radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, rgba(10,17,32,0) 70%);"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <button class="mobile-toggle" id="mobileToggle">☰</button>
+
+    <div class="dashboard-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand" style="text-align:center; margin-bottom: 20px;">
+                <img src="../logo/logoUGB.png" alt="UGB Logo" style="max-width: 150px; height: auto;">
+            </div>
+            <nav>
+                <ul class="nav-menu">
+                    <li><a href="#" class="nav-item active" onclick="switchTab('tab-stats', this)">Progreso y
+                            Estadísticas</a></li>
+                    <li><a href="#" class="nav-item" onclick="switchTab('tab-users', this)">Gestión de Docentes</a></li>
+                    <li><a href="#" class="nav-item" onclick="switchTab('tab-materials', this)">Gestión de
+                            Materiales</a></li>
+                    <li><a href="#" class="nav-item" onclick="switchTab('tab-exams', this)">Asignar Exámenes</a></li>
+                    <li><a href="#" class="nav-item" onclick="switchTab('tab-constructor', this)">Constructor de
+                            Exámenes</a></li>
+                    <li><a href="#" class="nav-item" onclick="switchTab('tab-grader', this)">Calificador Manual</a></li>
+                    <li><a href="#" class="nav-item" onclick="switchTab('tab-certs', this)">Emisión de Certificados</a>
+                    </li>
+
+                    <div id="superAdminMenu"
+                        style="display: none; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; margin-top: 10px;">
+                        <div
+                            style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; padding-left: 15px;">
+                            Super Admin</div>
+                        <li><a href="#" class="nav-item" onclick="switchTab('tab-admins', this)">Gestión de Admins</a>
+                        </li>
+                        <li><a href="#" class="nav-item" onclick="switchTab('tab-audit', this)">Registro de Cambios</a>
+                        </li>
+                    </div>
+                </ul>
+            </nav>
+            <div class="user-profile" title="Clic para editar perfil" style="cursor: pointer;"
+                id="sidebarProfileContainer">
+                <div class="avatar" id="sidebarAvatar"
+                    style="overflow: hidden; display: flex; justify-content: center; align-items: center;">?</div>
+                <div>
+                    <div id="sidebarName" style="font-weight: 500; color: var(--text-primary);">Usuario</div>
+                    <div id="sidebarRole" style="font-size: 0.8rem; color: var(--text-secondary);">Rol</div>
+                </div>
+            </div>
+            <a href="../index.html" class="nav-item" style="color: #f87171;">Cerrar Sesión</a>
+        </aside>
+
+        <script>
+            // Mostrar menú exclusivo para Super Admin
+            const localUser = JSON.parse(sessionStorage.getItem('user'));
+            if (localUser && localUser.rol === 'super_admin') {
+                document.getElementById('superAdminMenu').style.display = 'block';
+            }
+        </script>
+
+        <main class="main-content">
+            <!-- PESTAÑA: ESTADÍSTICAS GLOBALES -->
+            <div id="tab-stats" class="tab-content active">
+                <header class="header-top">
+                    <div>
+                        <h1>Panel de Analíticas Avanzadas</h1>
+                        <p style="color: var(--text-secondary); margin-top: 5px;">Métricas globales y ranking de
+                            docentes</p>
+                    </div>
+                </header>
+
+                <div class="bento-grid" style="margin-top: 20px;">
+                    <!-- Global Chart -->
+                    <div class="glass-panel card span-2" style="display:flex; flex-direction:column;">
+                        <h2 class="card-title">Promedio General por Estudiante</h2>
+                        <div style="flex:1; position:relative; min-height: 250px; margin-top:15px;">
+                            <canvas id="adminGlobalChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Best Student -->
+                    <div class="glass-panel card span-1"
+                        style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+                        <h2 class="card-title" style="margin-bottom: 20px; align-self:flex-start;">Rendimiento Destacado
+                        </h2>
+                        <div style="font-size: 3rem; margin-bottom:10px;">🏆</div>
+                        <h3 class="text-gradient" style="font-size: 1.5rem; margin-bottom:5px;" id="bestStudentName">
+                            Cargando...</h3>
+                        <p style="color:var(--text-secondary); margin-bottom:10px;">Mejor Promedio Global</p>
+                        <div style="background: rgba(74, 222, 128, 0.2); color: #4ade80; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 1.2rem;"
+                            id="bestStudentGrade">0.0</div>
+                    </div>
+
+                    <!-- Ranking Table -->
+                    <div class="glass-panel card span-3">
+                        <h2 class="card-title">Ranking General de Docentes</h2>
+                        <div class="table-container" style="margin-top: 15px;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Posición</th>
+                                        <th>Docente</th>
+                                        <th>Progreso de Módulos</th>
+                                        <th>Promedio de Evaluaciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rankingTableBody">
+                                    <tr>
+                                        <td colspan="4" style="text-align:center;">Cargando analíticas...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: GESTIÓN DE DOCENTES -->
+            <div id="tab-users" class="tab-content">
+                <div class="glass-panel card">
+                    <div style="display:flex; justify-content: space-between; align-items:center;">
+                        <h2 class="card-title">Gestión de Docentes</h2>
+                        <div style="display:flex; gap: 10px; align-items:center;">
+                            <input type="text" id="searchUsers" placeholder="🔍 Buscar docente..." class="input-control"
+                                style="width: 250px; padding: 8px 12px; border-radius: 20px; font-size: 0.9rem;"
+                                oninput="filterTable('searchUsers', 'tableUsers')">
+                            <button class="btn-primary" onclick="showUserForm()">+ Registrar Docente</button>
+                            <button class="btn-secondary"
+                                style="background: #10b981; color: white; border-color: #10b981;"
+                                onclick="exportTableToCSV('tableUsers', 'Docentes_Reporte.csv')">📊 Exportar
+                                CSV</button>
+                        </div>
+                    </div>
+
+                    <form id="formNewUser"
+                        style="display: none; gap: 15px; margin-top: 20px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+                        <input type="hidden" id="nuId">
+                        <div class="input-group" style="margin:0; flex:1;">
+                            <input type="text" id="nuNombre" placeholder="Nombre Completo" class="input-control"
+                                required>
+                        </div>
+                        <div class="input-group" style="margin:0; flex:1;">
+                            <input type="text" id="nuUser" placeholder="Usuario" class="input-control" required>
+                        </div>
+                        <div class="input-group" style="margin:0; flex:1;">
+                            <input type="text" id="nuPass" placeholder="Clave (Ej. temporal123)" class="input-control"
+                                required>
+                        </div>
+                        <div class="input-group" style="margin:0; flex:1;">
+                            <select id="nuEstado" class="input-control"
+                                style="background: rgba(0,0,0,0.4); color: white;">
+                                <option value="temporal">Temporal (Pedirá cambio)</option>
+                                <option value="permanente">Permanente</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-secondary" id="btnGuardarUser">Crear</button>
+                        <button type="button" class="btn-secondary" style="background: transparent; color: white;"
+                            onclick="document.getElementById('formNewUser').style.display='none'">Cancelar</button>
+                    </form>
+
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Docente</th>
+                                    <th>Usuario</th>
+                                    <th>Clave / Estado</th>
+                                    <th>Progreso</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableUsers">
+                                <!-- Llenado dinámico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: GESTIÓN DE MATERIALES -->
+            <div id="tab-materials" class="tab-content">
+                <div class="glass-panel card">
+                    <div style="display:flex; justify-content: space-between; align-items:center;">
+                        <div>
+                            <h2 class="card-title">Gestión de Materiales</h2>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem;">Sube archivos o enlaces para
+                                las semanas de cada módulo.</p>
+                        </div>
+                        <button class="btn-primary"
+                            onclick="document.getElementById('formNewMaterial').style.display='flex'">+ Añadir
+                            Recurso</button>
+                    </div>
+
+                    <form id="formNewMaterial"
+                        style="display: none; gap: 15px; flex-wrap:wrap; margin-top: 20px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+                        <div class="input-group" style="margin:0; flex:1; min-width:200px;">
+                            <label>Módulo</label>
+                            <select id="matModule" class="input-control"
+                                style="background: rgba(0,0,0,0.4); color: white;" onchange="updateWeekOptions()"
+                                required>
+                                <option value="1">Módulo 1: Office</option>
+                                <option value="2">Módulo 2: Canva</option>
+                                <option value="3">Módulo 3: Web 2.0 e IA</option>
+                                <option value="4">Módulo 4: Ciberseguridad</option>
+                            </select>
+                        </div>
+                        <div class="input-group" style="margin:0; flex:1; min-width:200px;">
+                            <label>Semana</label>
+                            <select id="matWeek" class="input-control"
+                                style="background: rgba(0,0,0,0.4); color: white;" required>
+                                <!-- Se llena dinámicamente -->
+                            </select>
+                        </div>
+                        <div class="input-group" style="margin:0; flex:1; min-width:200px;">
+                            <label>Título del Recurso</label>
+                            <input type="text" id="matTitle" placeholder="Ej. Diapositivas Canva" class="input-control"
+                                required>
+                        </div>
+                        <div class="input-group" style="margin:0; flex:1; min-width:200px;">
+                            <label>Tipo de Recurso</label>
+                            <select id="matType" class="input-control"
+                                style="background: rgba(0,0,0,0.4); color: white;" onchange="toggleMatType()" required>
+                                <option value="file">Archivo Subido (PDF, DOCX, XLSX)</option>
+                                <option value="link">Enlace Externo (URL)</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group" id="matFileContainer"
+                            style="margin:0; flex:1; min-width:200px; display: block;">
+                            <label>Subir Archivo</label>
+                            <input type="file" id="matFile" class="input-control"
+                                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
+                        </div>
+
+                        <div class="input-group" id="matLinkContainer"
+                            style="margin:0; flex:1; min-width:200px; display: none;">
+                            <label>URL del Enlace</label>
+                            <input type="url" id="matLink" placeholder="https://..." class="input-control">
+                        </div>
+
+                        <div style="width: 100%; display: flex; gap: 10px; margin-top: 10px;">
+                            <button type="submit" class="btn-secondary" style="flex:1;">Guardar Recurso</button>
+                            <button type="button" class="btn-secondary"
+                                style="background: transparent; color: white; flex:1;"
+                                onclick="document.getElementById('formNewMaterial').style.display='none'">Cancelar</button>
+                        </div>
+                    </form>
+
+                    <div class="table-container" style="margin-top: 20px;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Módulo / Semana</th>
+                                    <th>Título del Recurso</th>
+                                    <th>Tipo</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableMaterials">
+                                <!-- Llenado dinámico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: EXÁMENES -->
+            <div id="tab-exams" class="tab-content">
+                <div class="glass-panel card">
+                    <h2 class="card-title">Configurar Apertura de Exámenes</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 20px;">Establece fechas.
+                        Al guardar, el estudiante solo podrá acceder en ese rango.</p>
+
+                    <form id="configExamForm" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+                        <div class="input-group" style="margin-bottom:0; flex:1; min-width:200px;">
+                            <label>Módulo</label>
+                            <select id="selMod" class="input-control"
+                                style="background: rgba(0,0,0,0.4); color: white;">
+                                <option value="1">Módulo 1: Office</option>
+                                <option value="2">Módulo 2: Canva</option>
+                                <option value="3">Módulo 3: IA</option>
+                                <option value="4">Módulo 4: Ciberseguridad</option>
+                            </select>
+                        </div>
+                        <div class="input-group" style="margin-bottom:0; flex:1; min-width:200px;">
+                            <label>Apertura</label>
+                            <input type="datetime-local" id="startTime" class="input-control" required>
+                        </div>
+                        <div class="input-group" style="margin-bottom:0; flex:1; min-width:200px;">
+                            <label>Cierre</label>
+                            <input type="datetime-local" id="endTime" class="input-control" required>
+                        </div>
+                        <button type="submit" class="btn-primary" style="margin-bottom: 0px; padding: 14px 20px;"
+                            id="btnGuardarConfig">Asignar Examen</button>
+                    </form>
+
+                    <!-- Lista de Configuraciones Actuales -->
+                    <div style="margin-top: 30px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
+                        <h3 style="margin-bottom: 15px; font-size: 1.1rem;">Asignaciones Actuales</h3>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Módulo</th>
+                                        <th>Estado</th>
+                                        <th>Periodo Habilitado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableExamConfigs">
+                                    <tr>
+                                        <td colspan="4" style="text-align:center;">Cargando configuraciones...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: CONSTRUCTOR DE EXÁMENES -->
+            <div id="tab-constructor" class="tab-content">
+                <div class="glass-panel card">
+                    <h2 class="card-title">Constructor de Exámenes Dinámico</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 20px;">Crea preguntas de
+                        opción múltiple, verdadero/falso, o de tipo enlace/archivo. Puedes adjuntar una imagen
+                        ilustrativa para la pregunta.</p>
+
+                    <form id="constructorForm"
+                        style="display: flex; flex-direction: column; gap: 15px; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px;">
+                        <div style="display:flex; gap:15px; flex-wrap:wrap;">
+                            <div class="input-group" style="margin:0; flex:1; min-width:200px;">
+                                <label>Módulo Destino</label>
+                                <select id="constModule" class="input-control"
+                                    style="background: rgba(0,0,0,0.4); color: white;">
+                                    <option value="1">Módulo 1: Office</option>
+                                    <option value="2">Módulo 2: Canva</option>
+                                    <option value="3">Módulo 3: IA</option>
+                                    <option value="4">Módulo 4: Ciberseguridad</option>
+                                </select>
+                            </div>
+                            <div class="input-group" style="margin:0; flex:1; min-width:200px;">
+                                <label>Tipo de Pregunta</label>
+                                <select id="constType" class="input-control"
+                                    style="background: rgba(0,0,0,0.4); color: white;"
+                                    onchange="toggleQuestionOptions()">
+                                    <option value="multiple">Opción Múltiple (Radio)</option>
+                                    <option value="tf">Verdadero / Falso</option>
+                                    <option value="link">Subida de Archivo / Enlace de Canvas (Calificación Manual)
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="input-group" style="margin:0; width:100px;">
+                                <label>Puntos</label>
+                                <input type="number" id="constPoints" class="input-control" value="1" min="1" step="0.5"
+                                    required>
+                            </div>
+                        </div>
+
+                        <div class="input-group" style="margin:0;">
+                            <label>Texto de la Pregunta</label>
+                            <input type="text" id="constText" class="input-control"
+                                placeholder="Escribe aquí el enunciado de la pregunta..." required>
+                        </div>
+
+                        <div class="input-group" style="margin:0;">
+                            <label>Imagen Adjunta (Opcional - Ej. Phishing, gráficas)</label>
+                            <input type="file" id="constImage" class="input-control" accept="image/*">
+                        </div>
+
+                        <div id="optionsContainer"
+                            style="margin-top:10px; padding-top:10px; border-top:1px solid var(--glass-border);">
+                            <label>Opciones y Respuesta Correcta</label>
+                            <p style="color:var(--text-secondary); font-size:0.8rem; margin-bottom:10px;">Añade opciones
+                                para la pregunta y selecciona el círculo para marcar la correcta. (Ignorar si es tipo
+                                Archivo/Enlace)</p>
+                            <div id="dynamicOptionsList"
+                                style="display:flex; flex-direction:column; gap:10px; margin-bottom:10px;">
+                                <!-- Opciones dinámicas -->
+                            </div>
+                            <button type="button" class="btn-secondary" style="font-size:0.8rem; padding: 5px 10px;"
+                                onclick="addConstructorOption()">+ Añadir Opción</button>
+                        </div>
+
+                        <button type="submit" class="btn-primary" style="margin-top:10px;"
+                            id="btnGuardarPregunta">Guardar Pregunta</button>
+                    </form>
+
+                    <div style="margin-top: 30px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
+                        <h3 style="margin-bottom: 15px; font-size: 1.1rem;">Preguntas por Módulo</h3>
+                        <div class="input-group" style="width: 250px;">
+                            <select id="filterConstModule" class="input-control"
+                                style="background: rgba(0,0,0,0.4); color: white;" onchange="loadQuestions()">
+                                <option value="1">Módulo 1: Office</option>
+                                <option value="2">Módulo 2: Canva</option>
+                                <option value="3">Módulo 3: IA</option>
+                                <option value="4">Módulo 4: Ciberseguridad</option>
+                            </select>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Pregunta</th>
+                                        <th>Tipo</th>
+                                        <th>Puntos</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableQuestions">
+                                    <tr>
+                                        <td colspan="5" style="text-align:center;">Cargando preguntas...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: CALIFICADOR MANUAL -->
+            <div id="tab-grader" class="tab-content">
+                <div class="glass-panel card">
+                    <div style="display:flex; justify-content: space-between; align-items:flex-start;">
+                        <div>
+                            <h2 class="card-title">Calificador Manual (Entregas Pendientes)</h2>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 20px;">Revisa los
+                                trabajos de los docentes, como plantillas de Canva o archivos subidos, y asígnales los
+                                puntos correspondientes.</p>
+                        </div>
+                        <input type="text" id="searchGrades" placeholder="🔍 Buscar entrega..." class="input-control"
+                            style="width: 250px; padding: 8px 12px; border-radius: 20px; font-size: 0.9rem;"
+                            oninput="filterTable('searchGrades', 'tablePendingGrades')">
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Docente</th>
+                                    <th>Módulo</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablePendingGrades">
+                                <tr>
+                                    <td colspan="5" style="text-align:center;">Cargando pendientes...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: CERTIFICADOS -->
+            <div id="tab-certs" class="tab-content">
+                <div class="glass-panel card">
+                    <h2 class="card-title">Validación de Certificados</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 20px;">Listado de
+                        docentes que alcanzaron el 100%. Debes validarlos manualmente para que puedan descargar su
+                        diploma.</p>
+
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Docente</th>
+                                    <th>Progreso</th>
+                                    <th>Estado Certificado</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableCerts">
+                                <!-- Llenado dinámico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PESTAÑA: GESTIÓN DE ADMINS (Solo Super Admin) -->
+            <div id="tab-admins" class="tab-content">
+                <header class="header-top">
+                    <div>
+                        <h1>Gestión de Administradores</h1>
+                        <p style="color: var(--text-secondary); margin-top: 5px;">Crea y administra cuentas con acceso
+                            privilegiado.</p>
+                    </div>
+                    <button class="btn-primary"
+                        onclick="document.getElementById('formNewAdmin').style.display='block'; document.getElementById('formNewAdmin').reset();">+
+                        Nuevo Admin</button>
+                </header>
+
+                <form id="formNewAdmin" class="glass-panel" style="display:none; margin-top: 20px; padding: 20px;">
+                    <h3 class="text-gradient" style="margin-bottom: 15px;">Crear Nuevo Administrador</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <label>Nombre Completo</label>
+                            <input type="text" id="adminName" class="input-control" required>
+                        </div>
+                        <div>
+                            <label>Usuario (Login)</label>
+                            <input type="text" id="adminUser" class="input-control" required>
+                        </div>
+                        <div>
+                            <label>Contraseña Temporal</label>
+                            <input type="text" id="adminPass" class="input-control" required>
+                        </div>
+                        <div>
+                            <label>Rol</label>
+                            <select id="adminRol" class="input-control" required
+                                style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: white;">
+                                <option value="admin">Admin</option>
+                                <option value="super_admin">Super Admin</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px; text-align: right;">
+                        <button type="button" class="btn-secondary"
+                            onclick="document.getElementById('formNewAdmin').style.display='none'">Cancelar</button>
+                        <button type="submit" class="btn-primary">Guardar</button>
+                    </div>
+                </form>
+
+                <div class="glass-panel" style="margin-top: 20px;">
+                    <h2 class="card-title">Lista de Administradores</h2>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Perfil</th>
+                                    <th>Nombre</th>
+                                    <th>Usuario</th>
+                                    <th>Rol</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableAdmins">
+                                <tr>
+                                    <td colspan="5" style="text-align:center;">Cargando administradores...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PESTAÑA: REGISTRO DE CAMBIOS (Audit Logs) -->
+            <div id="tab-audit" class="tab-content">
+                <header class="header-top">
+                    <div>
+                        <h1>Registro de Cambios del Sistema</h1>
+                        <p style="color: var(--text-secondary); margin-top: 5px;">Historial de acciones realizadas por
+                            los administradores.</p>
+                    </div>
+                    <button class="btn-secondary" onclick="loadAuditLogs()">🔄 Refrescar</button>
+                </header>
+
+                <div class="glass-panel" style="margin-top: 20px;">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha y Hora</th>
+                                    <th>Administrador</th>
+                                    <th>Acción</th>
+                                    <th>Detalles</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableAudit">
+                                <tr>
+                                    <td colspan="4" style="text-align:center;">Cargando registros...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Set User Profile
+        const currentUser = JSON.parse(sessionStorage.getItem('user'));
+        if (!currentUser || (currentUser.rol !== 'super_admin' && currentUser.rol !== 'admin')) {
+            window.location.href = '../index.html';
+        }
+
+        // Interceptar fetch para inyectar headers de auditoría
+        const originalFetch = window.fetch;
+        window.fetch = function (url, options) {
+            if (typeof url === 'string' && url.includes('/api/admin/')) {
+                options = options || {};
+                const headers = new Headers(options.headers || {});
+                headers.set('Admin-Id', currentUser.id);
+                headers.set('Admin-Name', currentUser.nombre);
+                options.headers = headers;
+            }
+            return originalFetch(url, options);
+        };
+
+        let isEditingUser = false; // Bandera para saber si guardamos o actualizamos
+
+        function switchTab(tabId, el) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            el.classList.add('active');
+
+            if (tabId === 'tab-stats') loadStats();
+            if (tabId === 'tab-users') loadUsers();
+            if (tabId === 'tab-certs') loadCerts();
+            if (tabId === 'tab-materials') loadMaterials();
+            if (tabId === 'tab-exams') loadExamConfigs();
+            if (tabId === 'tab-admins') loadAdmins();
+            if (tabId === 'tab-audit') loadAuditLogs();
+        }
+
+        document.getElementById('mobileToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('open');
+        });
+
+        // ================= GESTIÓN DE MATERIALES =================
+        const weeksPerModule = { 1: 4, 2: 4, 3: 5, 4: 2 };
+        const weekOffsets = { 1: 0, 2: 4, 3: 8, 4: 13 };
+
+        function updateWeekOptions() {
+            const modId = parseInt(document.getElementById('matModule').value);
+            const selectWeek = document.getElementById('matWeek');
+            selectWeek.innerHTML = '';
+
+            const numWeeks = weeksPerModule[modId];
+            const offset = weekOffsets[modId];
+
+            for (let i = 1; i <= numWeeks; i++) {
+                const globalWeek = offset + i;
+                selectWeek.innerHTML += `<option value="${globalWeek}">Semana ${globalWeek}</option>`;
+            }
+        }
+
+        function toggleMatType() {
+            const type = document.getElementById('matType').value;
+            if (type === 'file') {
+                document.getElementById('matFileContainer').style.display = 'block';
+                document.getElementById('matLinkContainer').style.display = 'none';
+                document.getElementById('matFile').required = true;
+                document.getElementById('matLink').required = false;
+            } else {
+                document.getElementById('matFileContainer').style.display = 'none';
+                document.getElementById('matLinkContainer').style.display = 'block';
+                document.getElementById('matFile').required = false;
+                document.getElementById('matLink').required = true;
+            }
+        }
+
+        // Initialize week options on load
+        document.addEventListener('DOMContentLoaded', () => {
+            updateWeekOptions();
+        });
+
+        document.getElementById('formNewMaterial').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const moduleId = document.getElementById('matModule').value;
+            const weekId = document.getElementById('matWeek').value;
+            const title = document.getElementById('matTitle').value;
+            const type = document.getElementById('matType').value;
+
+            try {
+                let url = '';
+                if (type === 'file') {
+                    const fileInput = document.getElementById('matFile');
+                    if (fileInput.files.length > 0) {
+                        url = await uploadToSupabase(fileInput.files[0], 'archivos');
+                    } else {
+                        alert('Debes seleccionar un archivo.');
+                        return;
+                    }
+                } else {
+                    url = document.getElementById('matLink').value;
+                }
+
+                const { data, error } = await supabase
+                    .from('module_resources')
+                    .insert([{
+                        module_id: moduleId,
+                        week_id: weekId,
+                        title: title,
+                        type: type,
+                        url: url
+                    }]);
+
+                if (!error) {
+                    document.getElementById('formNewMaterial').reset();
+                    document.getElementById('formNewMaterial').style.display = 'none';
+                    updateWeekOptions();
+                    toggleMatType();
+                    loadMaterials();
+                } else {
+                    alert('Error: ' + error.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error al guardar el material.');
+            }
+        });
+
+        async function loadMaterials() {
+            try {
+                const { data: resources, error } = await supabase.from('module_resources').select('*');
+                const tbody = document.getElementById('tableMaterials');
+                tbody.innerHTML = '';
+
+                if (!error && resources && resources.length > 0) {
+                    resources.forEach(r => {
+                        const iconHtml = r.type === 'file' ? '📄 Archivo' : '🔗 Enlace';
+                        tbody.innerHTML += `
+                            <tr>
+                                <td style="font-weight: 500;">Módulo ${r.module_id} <br><span style="font-size:0.8rem; color:var(--text-secondary);">Semana ${r.week_id}</span></td>
+                                <td>${r.title}</td>
+                                <td>${iconHtml}</td>
+                                <td>
+                                    <button class="btn-danger action-btn" onclick="deleteMaterial(${r.id})" title="Eliminar Recurso">🗑</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay recursos registrados.</td></tr>';
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('tableMaterials').innerHTML = '<tr><td colspan="4" style="text-align:center; color: #f87171;">Error al cargar.</td></tr>';
+            }
+        }
+
+        async function deleteMaterial(id) {
+            if (!confirm('¿Seguro que deseas eliminar este recurso?')) return;
+            try {
+                const { error } = await supabase.from('module_resources').delete().eq('id', id);
+                if (!error) loadMaterials();
+                else alert('Error: ' + error.message);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function loadExamConfigs() {
+            try {
+                const { data: configs, error } = await supabase.from('exams_config').select('*');
+                const tbody = document.getElementById('tableExamConfigs');
+                tbody.innerHTML = '';
+
+                if (!error && configs) {
+                    const modNames = { 1: 'Módulo 1: Office', 2: 'Módulo 2: Canva', 3: 'Módulo 3: IA', 4: 'Módulo 4: Ciberseguridad' };
+                    const now = new Date();
+
+                    configs.forEach(c => {
+                        const st = new Date(c.start_time);
+                        const et = new Date(c.end_time);
+
+                        let statusHtml = '';
+                        let periodHtml = '';
+
+                        // Si el año es 2000 o 1999 (por desfase horario), está bloqueado (no asignado)
+                        if (st.getFullYear() === 2000 || st.getFullYear() === 1999) {
+                            statusHtml = '<span class="status-badge" style="background: rgba(248, 113, 113, 0.2); color: #f87171;">Bloqueado / No Asignado</span>';
+                            periodHtml = '<span style="color: var(--text-secondary);">Sin fechas asignadas</span>';
+                        } else {
+                            if (now >= st && now <= et) {
+                                statusHtml = '<span class="status-badge status-aprobado">Activo</span>';
+                            } else if (now < st) {
+                                statusHtml = '<span class="status-badge status-proceso">Programado (Futuro)</span>';
+                            } else {
+                                statusHtml = '<span class="status-badge" style="background: rgba(248, 113, 113, 0.2); color: #f87171;">Finalizado</span>';
+                            }
+                            periodHtml = `Del: ${st.toLocaleString()}<br>Al: ${et.toLocaleString()}`;
+                        }
+
+                        const startISO = c.start_time.substring(0, 16);
+                        const endISO = c.end_time.substring(0, 16);
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td style="font-weight: 500;">${modNames[c.module_id]}</td>
+                                <td>${statusHtml}</td>
+                                <td style="font-size: 0.85rem;">${periodHtml}</td>
+                                <td>
+                                    <button class="action-btn" onclick="editConfig(${c.module_id}, '${startISO}', '${endISO}')">Modificar</button>
+                                    <button class="action-btn btn-danger" onclick="deleteConfig(${c.module_id})">Eliminar (Bloquear)</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function editConfig(modId, st, et) {
+            document.getElementById('selMod').value = modId;
+            document.getElementById('startTime').value = (st && !st.startsWith('2000')) ? st : '';
+            document.getElementById('endTime').value = (et && !et.startsWith('2000')) ? et : '';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function deleteConfig(modId) {
+            if (!await glassConfirm('¿Estás seguro de eliminar esta asignación? El examen quedará inmediatamente bloqueado.')) return;
+            try {
+                const lockedDate = '2000-01-01T00:00:00.000Z';
+                const { error } = await supabase.from('exams_config').update({ start_time: lockedDate, end_time: lockedDate }).eq('module_id', modId);
+
+                if (!error) {
+                    await glassAlert("Asignación eliminada. Examen bloqueado.");
+                    loadExamConfigs();
+                }
+            } catch (e) { await glassAlert("Error de conexión"); }
+        }
+
+        document.getElementById('configExamForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const moduleId = document.getElementById('selMod').value;
+            const startTime = new Date(document.getElementById('startTime').value).toISOString();
+            const endTime = new Date(document.getElementById('endTime').value).toISOString();
+            try {
+                const { error } = await supabase.from('exams_config').upsert({ module_id: moduleId, start_time: startTime, end_time: endTime });
+                if (!error) {
+                    await glassAlert("Asignación de examen guardada exitosamente.");
+                    loadExamConfigs();
+                    document.getElementById('configExamForm').reset();
+                }
+            } catch (e) { await glassAlert("Error de conexión"); }
+        });
+
+        // ================= STATS =================
+        async function loadStats() {
+            try {
+                // Obtener estudiantes y su progreso
+                const { data: students, error: errStudents } = await supabase.from('users').select('id, nombre, progress(total_progress)').eq('rol', 'estudiante');
+                // Obtener exam_attempts
+                const { data: attempts, error: errAttempts } = await supabase.from('exam_attempts').select('user_id, grade, status').eq('status', 'calificado');
+
+                let ranking = [];
+                if (students) {
+                    students.forEach(s => {
+                        const studentAttempts = attempts ? attempts.filter(a => a.user_id === s.id) : [];
+                        let sumGrade = 0;
+                        studentAttempts.forEach(a => sumGrade += (a.grade || 0));
+                        let avg_grade = studentAttempts.length > 0 ? (sumGrade / studentAttempts.length) : 0;
+
+                        let total_progress = 0;
+                        // En la relación de supabase es posible que retorne un arreglo (aunque sea single rule)
+                        if (s.progress) {
+                            if (Array.isArray(s.progress) && s.progress.length > 0) total_progress = s.progress[0].total_progress || 0;
+                            else if (s.progress.total_progress) total_progress = s.progress.total_progress || 0;
+                        }
+
+                        ranking.push({
+                            id: s.id,
+                            nombre: s.nombre,
+                            avg_grade: avg_grade,
+                            total_progress: total_progress
+                        });
+                    });
+                }
+
+                // Ordenar ranking por avg_grade DESC, y luego por progreso
+                ranking.sort((a, b) => {
+                    if (b.avg_grade === a.avg_grade) return b.total_progress - a.total_progress;
+                    return b.avg_grade - a.avg_grade;
+                });
+
+                const bestStudent = ranking.length > 0 && ranking[0].avg_grade > 0 ? ranking[0] : null;
+
+                if (bestStudent) {
+                    document.getElementById('bestStudentName').innerText = bestStudent.nombre;
+                    document.getElementById('bestStudentGrade').innerText = bestStudent.avg_grade.toFixed(2) + " / 10";
+                } else {
+                    document.getElementById('bestStudentName').innerText = "Sin Datos";
+                }
+
+                const tbody = document.getElementById('rankingTableBody');
+                tbody.innerHTML = '';
+
+                const chartLabels = [];
+                const chartData = [];
+
+                ranking.forEach((u, index) => {
+                    chartLabels.push(u.nombre.split(' ')[0]); // Primer nombre para la gráfica
+                    chartData.push(u.avg_grade.toFixed(2));
+
+                    let posIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}º`;
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td style="font-size: 1.2rem; font-weight: bold; color: var(--accent-blue);">${posIcon}</td>
+                            <td>${u.nombre}</td>
+                            <td><div style="background: rgba(255,255,255,0.1); width: 100%; height: 8px; border-radius: 4px; overflow: hidden;"><div style="background: var(--accent-blue); width: ${u.total_progress || 0}%; height: 100%;"></div></div></td>
+                            <td style="font-weight: bold; color: #4ade80;">${u.avg_grade.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+
+                // Dibujar Gráfica
+                const ctx = document.getElementById('adminGlobalChart').getContext('2d');
+                // Destruir si existe (útil si se recarga)
+                if (window.adminChart) window.adminChart.destroy();
+                window.adminChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{
+                            label: 'Promedio General',
+                            data: chartData,
+                            backgroundColor: 'rgba(167, 139, 250, 0.6)',
+                            borderColor: 'rgba(167, 139, 250, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, max: 10, ticks: { color: 'rgba(255,255,255,0.7)' } },
+                            x: { ticks: { color: 'rgba(255,255,255,0.7)' } }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // ================= USERS =================
+        async function loadUsers() {
+            try {
+                // Get users and progress
+                const { data: users, error } = await supabase
+                    .from('users')
+                    .select('*, progress(total_progress)')
+                    .eq('rol', 'docente');
+
+                const tbody = document.getElementById('tableUsers');
+                tbody.innerHTML = '';
+
+                if (!error && users) {
+                    users.forEach(u => {
+                        const avatarStr = u.avatar_url ? `<img src="${u.avatar_url}" class="small-avatar">` : `<span class="small-avatar">${u.nombre.charAt(0)}</span>`;
+                        const passCls = u.estado_password === 'temporal' ? 'color: #f87171;' : 'color: #4ade80;';
+
+                        // Clean for JSON
+                        let safeUser = { ...u };
+                        delete safeUser.progress; // Not needed in edit form
+                        const userObj = JSON.stringify(safeUser).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+
+                        let total_progress = 0;
+                        if (u.progress) {
+                            if (Array.isArray(u.progress) && u.progress.length > 0) total_progress = u.progress[0].total_progress || 0;
+                            else if (u.progress.total_progress) total_progress = u.progress.total_progress || 0;
+                        }
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${avatarStr} ${u.nombre}</td>
+                                <td>${u.username}</td>
+                                <td>
+                                    <span style="font-family:monospace;">${u.password}</span>
+                                    <br><span style="font-size: 0.75rem; ${passCls}">${u.estado_password.toUpperCase()}</span>
+                                </td>
+                                <td><span class="status-badge ${total_progress > 0 ? 'status-aprobado' : 'status-proceso'}">${total_progress || 0}%</span></td>
+                                <td>
+                                    <button class="action-btn" onclick="editUser('${userObj}')">Editar</button>
+                                    <button class="action-btn" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border-color: #c4b5fd;" onclick="resetAttempts('${u.id}')">Reiniciar Examen</button>
+                                    <button class="action-btn btn-danger" onclick="deleteUser('${u.id}')">Eliminar</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function resetAttempts(userId) {
+            const moduleId = prompt("Ingresa el número de módulo a reiniciar (1, 2, 3 o 4):", "1");
+            if (!moduleId || isNaN(moduleId) || moduleId < 1 || moduleId > 4) return;
+            if (!await glassConfirm("¿Estás seguro de reiniciar los intentos del Módulo " + moduleId + " para este docente?")) return;
+
+            try {
+                const { error } = await supabase.from('exam_attempts').update({ attempts: 0, status: 'en_progreso' }).eq('user_id', userId).eq('module_id', moduleId);
+                if (!error) await glassAlert("Intentos reiniciados a 0.");
+                else await glassAlert("Error al reiniciar intentos.");
+            } catch (e) { await glassAlert("Error de conexión"); }
+        }
+
+        function showUserForm() {
+            isEditingUser = false;
+            document.getElementById('formNewUser').reset();
+            document.getElementById('nuId').value = '';
+            document.getElementById('btnGuardarUser').innerText = 'Crear Docente';
+            document.getElementById('formNewUser').style.display = 'flex';
+        }
+
+        function editUser(userStr) {
+            const u = JSON.parse(userStr);
+            isEditingUser = true;
+            document.getElementById('nuId').value = u.id;
+            document.getElementById('nuNombre').value = u.nombre;
+            document.getElementById('nuUser').value = u.username;
+            document.getElementById('nuPass').value = u.password;
+            document.getElementById('nuEstado').value = u.estado_password;
+            document.getElementById('btnGuardarUser').innerText = 'Guardar Cambios';
+            document.getElementById('formNewUser').style.display = 'flex';
+        }
+
+        async function deleteUser(id) {
+            if (!await glassConfirm("¿Estás seguro de eliminar a este docente? Todo su progreso, notas y datos se perderán irreversiblemente.")) return;
+            try {
+                const { error } = await supabase.from('users').delete().eq('id', id);
+                if (!error) {
+                    await logAudit("ELIMINAR_DOCENTE", { id });
+                    await glassAlert('Docente eliminado exitosamente.');
+                    loadUsers();
+                    loadStats();
+                }
+            } catch (e) { await glassAlert("Error"); }
+        }
+
+        document.getElementById('formNewUser').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('nuId').value;
+            const nombre = document.getElementById('nuNombre').value;
+            const username = document.getElementById('nuUser').value;
+            const password = document.getElementById('nuPass').value;
+            const estado_password = document.getElementById('nuEstado').value;
+
+            try {
+                if (isEditingUser) {
+                    const { error } = await supabase.from('users').update({ nombre, username, password, estado_password }).eq('id', id);
+                    if (!error) {
+                        await glassAlert('Actualizado');
+                        document.getElementById('formNewUser').style.display = 'none';
+                        loadUsers();
+                    } else {
+                        await glassAlert(error.message || 'Error al actualizar');
+                    }
+                } else {
+                    const { data: exist, error: errExist } = await supabase.from('users').select('id').eq('username', username).single();
+                    if (exist) {
+                        await glassAlert('El usuario (username) ya existe.');
+                        return;
+                    }
+
+                    const { error } = await supabase.from('users').insert([{
+                        nombre, username, password, estado_password, rol: 'docente'
+                    }]);
+                    if (!error) {
+                        await logAudit("CREAR_DOCENTE", { username });
+                        await glassAlert('Docente registrado.');
+                        document.getElementById('formNewUser').reset();
+                        loadUsers();
+                        loadStats();
+                    } else {
+                        await glassAlert(error.message || 'Error al registrar docente.');
+                    }
+                }
+            } catch (e) { await glassAlert("Error de conexión"); }
+        });
+
+
+        // ================= MENTORES =================
+        async function loadMentors() {
+            try {
+                const { data: mentors, error } = await supabase.from('users').select('*').in('rol', ['admin', 'super_admin']);
+                const tbody = document.getElementById('tableMentors');
+                tbody.innerHTML = '';
+
+                if (!error && mentors) {
+                    mentors.forEach(m => {
+                        const avatarStr = m.avatar_url ? `<img src="${m.avatar_url}" class="small-avatar" style="width:40px; height:40px;">` : `<span class="small-avatar" style="width:40px; height:40px;">${m.nombre.charAt(0)}</span>`;
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${avatarStr}</td>
+                                <td>${m.nombre}</td>
+                                <td><a href="https://wa.me/${m.telefono}" target="_blank" style="color: #4ade80;">${m.telefono}</a></td>
+                                <td>
+                                    <button class="action-btn btn-danger" onclick="deleteMentor('${m.id}')">Eliminar</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        const formNewMentor = document.getElementById('formNewMentor');
+        if (formNewMentor) {
+            formNewMentor.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const nombre = document.getElementById('mNombre').value;
+                const username = document.getElementById('mUser').value;
+                const password = document.getElementById('mPass').value;
+                const telefono = document.getElementById('mTel').value;
+                const rol = document.getElementById('mRol').value;
+                const is_private = document.getElementById('mPriv').checked;
+
+                try {
+                    let avatarUrl = null;
+                    const fileInput = document.getElementById('mAvatar');
+                    if (fileInput && fileInput.files.length > 0) {
+                        avatarUrl = await uploadToSupabase(fileInput.files[0], 'avatars');
+                    }
+
+                    const { data: exist } = await supabase.from('users').select('id').eq('username', username).single();
+                    if (exist) {
+                        await glassAlert('El usuario ya existe.');
+                        return;
+                    }
+
+                    const { error } = await supabase.from('users').insert([{
+                        nombre, username, password, telefono, rol, is_private, avatar_url: avatarUrl
+                    }]);
+
+                    if (!error) {
+                        await glassAlert('Mentor añadido.');
+                        formNewMentor.reset();
+                        formNewMentor.style.display = 'none';
+                        loadMentors();
+                    } else {
+                        await glassAlert('Error: ' + error.message);
+                    }
+                } catch (e) { await glassAlert("Error de conexión"); }
+            });
+        }
+
+        async function deleteMentor(id) {
+            if (!await glassConfirm("¿Eliminar mentor? Desaparecerá de la vista de los estudiantes.")) return;
+            try {
+                const { error } = await supabase.from('users').delete().eq('id', id);
+                if (!error) { await glassAlert('Mentor eliminado'); loadMentors(); }
+            } catch (e) { await glassAlert("Error"); }
+        }
+
+        // ================= CERTIFICADOS =================
+        async function loadCerts() {
+            try {
+                const { data: progressList, error } = await supabase.from('progress').select('*, user:user_id(nombre)').eq('total_progress', 100);
+                const tbody = document.getElementById('tableCerts');
+                tbody.innerHTML = '';
+
+                let hasCerts = false;
+                if (!error && progressList) {
+                    progressList.forEach(p => {
+                        hasCerts = true;
+                        const statusStr = p.is_certified ? '<span style="color:#4ade80;">Validado</span>' : '<span style="color:#fde047;">Pendiente de Validación</span>';
+                        const btnStr = p.is_certified ? '<button class="action-btn" disabled style="opacity:0.5;">Ya Validado</button>' : `<button class="action-btn" style="background: #2563eb;" onclick="validarCert('${p.user_id}')">Aprobar y Firmar</button>`;
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${p.user ? p.user.nombre : 'Usuario Desconocido'}</td>
+                                <td>100% Completado</td>
+                                <td>${statusStr}</td>
+                                <td>${btnStr}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                if (!hasCerts) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">No hay docentes al 100% todavía.</td></tr>`;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function validarCert(userId) {
+            if (!await glassConfirm("¿Confirmas la validación manual de este certificado? Esto habilitará el PDF para el docente.")) return;
+            try {
+                const { error } = await supabase.from('progress').update({ is_certified: true }).eq('user_id', userId);
+                if (!error) {
+                    await glassAlert('Certificado Validado Exitosamente');
+                    loadCerts();
+                    loadStats();
+                }
+            } catch (e) { await glassAlert("Error"); }
+        }
+
+        // ================= CONSTRUCTOR =================
+        function toggleQuestionOptions() {
+            const t = document.getElementById('constType').value;
+            const container = document.getElementById('optionsContainer');
+            if (t === 'link') {
+                container.style.display = 'none';
+            } else {
+                container.style.display = 'block';
+            }
+        }
+
+        function addConstructorOption() {
+            const container = document.getElementById('dynamicOptionsList');
+            const id = 'opt_' + Date.now() + Math.floor(Math.random() * 1000);
+            const div = document.createElement('div');
+            div.style.display = 'flex';
+            div.style.alignItems = 'center';
+            div.style.gap = '10px';
+            div.innerHTML = `
+                <input type="radio" name="constCorrectAnsRadio" value="${id}" style="width: 20px; height: 20px; cursor: pointer;" required>
+                <input type="text" class="input-control const-option-input" placeholder="Escribe la opción aquí..." style="margin:0; flex:1;" required>
+                <button type="button" class="btn-danger action-btn" onclick="this.parentElement.remove()" style="padding: 10px;">✖</button>
+            `;
+            container.appendChild(div);
+        }
+
+        // Inicializar con 2 opciones
+        document.addEventListener('DOMContentLoaded', () => {
+            addConstructorOption();
+            addConstructorOption();
+        });
+
+        document.getElementById('constructorForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const module_id = document.getElementById('constModule').value;
+            const type = document.getElementById('constType').value;
+            const text = document.getElementById('constText').value;
+            const points = parseFloat(document.getElementById('constPoints').value);
+
+            let options_json = null;
+            let correct_answer = null;
+
+            if (type !== 'link') {
+                const optInputs = document.querySelectorAll('.const-option-input');
+                let opts = [];
+                optInputs.forEach(inp => {
+                    if (inp.value.trim() !== '') {
+                        opts.push(inp.value.trim());
+                        const radio = inp.parentElement.querySelector('input[type="radio"]');
+                        if (radio && radio.checked) correct_answer = inp.value.trim();
+                    }
+                });
+                options_json = JSON.stringify(opts);
+            }
+
+            let image_url = null;
+            const fileInput = document.getElementById('constImage');
+            if (fileInput.files.length > 0) {
+                image_url = await uploadToSupabase(fileInput.files[0], 'archivos');
+            }
+
+            try {
+                const { error } = await supabase.from('questions').insert([{
+                    module_id, type, text, points, options_json, correct_answer, image_url
+                }]);
+
+                if (!error) {
+                    await glassAlert('Pregunta guardada exitosamente');
+                    document.getElementById('constructorForm').reset();
+                    toggleQuestionOptions();
+                    loadQuestions();
+                } else {
+                    await glassAlert("Error: " + error.message);
+                }
+            } catch (e) { await glassAlert("Error de conexión"); }
+        });
+
+        async function loadQuestions() {
+            const mId = document.getElementById('filterConstModule').value;
+            try {
+                const { data: questions, error } = await supabase.from('questions').select('*').eq('module_id', mId);
+                const tbody = document.getElementById('tableQuestions');
+                tbody.innerHTML = '';
+
+                if (!error && questions && questions.length > 0) {
+                    questions.forEach(q => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${q.id}</td>
+                                <td>${q.text}</td>
+                                <td>${q.type === 'link' ? 'Archivo/Enlace' : (q.type === 'tf' ? 'V/F' : 'Opción Múltiple')}</td>
+                                <td>${q.points} pts</td>
+                                <td><button class="action-btn btn-danger" onclick="deleteQuestion(${q.id})">Borrar</button></td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay preguntas.</td></tr>';
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function deleteQuestion(id) {
+            if (!await glassConfirm("¿Seguro que deseas eliminar esta pregunta?")) return;
+            try {
+                const { error } = await supabase.from('questions').delete().eq('id', id);
+                if (!error) { loadQuestions(); }
+            } catch (e) { await glassAlert("Error"); }
+        }
+
+        // ================= CALIFICADOR MANUAL =================
+        async function loadPendingGrades() {
+            try {
+                const { data: pending, error } = await supabase.from('exam_attempts').select('*, user:user_id(nombre)').eq('status', 'pendiente_revision');
+                const tbody = document.getElementById('tablePendingGrades');
+                tbody.innerHTML = '';
+
+                if (!error && pending && pending.length > 0) {
+                    pending.forEach(a => {
+                        const aiWarning = a.ai_flag ? `<br><span style="color: #f87171; font-size: 0.8rem; background: rgba(248,113,113,0.1); padding: 2px 6px; border-radius: 4px;">⚠️ Posible uso de IA</span>` : '';
+                        const nombre = a.user ? a.user.nombre : 'Usuario';
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>Reciente</td>
+                                <td>${nombre} ${aiWarning}</td>
+                                <td>Módulo ${a.module_id}</td>
+                                <td><span style="color:#fbbf24;">Pendiente</span></td>
+                                <td>
+                                    <button class="action-btn" style="background: #3b82f6;" onclick="openGradeModal(${a.id}, '${nombre}')">Revisar y Calificar</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay entregas pendientes de revisión.</td></tr>';
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function openGradeModal(attemptId, userName) {
+            document.getElementById('gradeModalTitle').innerText = 'Calificando a ' + userName;
+            document.getElementById('gradeModalAttemptId').value = attemptId;
+            document.getElementById('gradeModalContainer').innerHTML = 'Cargando respuestas...';
+            document.getElementById('gradeModal').style.display = 'flex';
+
+            try {
+                const { data: answers, error } = await supabase.from('user_answers').select('*, question:question_id(*)').eq('attempt_id', attemptId);
+                let html = '';
+                let totalPossible = 0;
+
+                if (error || !answers || answers.length === 0) {
+                    document.getElementById('gradeModalContainer').innerHTML = 'No se encontraron respuestas.';
+                    return;
+                }
+
+                answers.forEach((ans, i) => {
+                    const q = ans.question || {};
+                    const points = q.points || 1;
+                    totalPossible += points;
+                    html += `
+                    <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid var(--glass-border);">
+                        <p style="font-weight:bold; margin-bottom:10px;">${i + 1}. ${q.text || 'Pregunta'} <span style="color:var(--accent-blue);">(${points} pts máx)</span></p>
+                    `;
+
+                    if (q.type === 'link') {
+                        if (ans.file_url) {
+                            html += `<p style="margin-bottom:10px;">📄 Archivo Adjunto: <a href="${ans.file_url}" target="_blank" style="color:#4ade80;">Ver Archivo</a></p>`;
+                        }
+                        if (ans.student_answer) {
+                            let linkStr = ans.student_answer.startsWith('http') ? `<a href="${ans.student_answer}" target="_blank" style="color:#60a5fa;">${ans.student_answer}</a>` : ans.student_answer;
+                            html += `<p style="margin-bottom:10px;">🔗 Enlace / Texto: ${linkStr}</p>`;
+                        }
+                        html += `
+                        <div class="input-group" style="margin:0;">
+                            <label>Puntos a otorgar</label>
+                            <input type="number" class="input-control manual-grade-input" data-ansid="${ans.id}" min="0" max="${points}" step="0.5" value="${ans.points_awarded || 0}" required>
+                        </div>
+                        `;
+                    } else {
+                        html += `<p style="margin-bottom:5px;">Respuesta Estudiante: <strong>${ans.student_answer || 'Sin responder'}</strong></p>`;
+                        html += `<p style="margin-bottom:10px; color:var(--text-secondary);">Respuesta Correcta: ${q.correct_answer || ''}</p>`;
+
+                        let isCorrect = (ans.student_answer && ans.student_answer === q.correct_answer);
+                        let defPts = isCorrect ? points : 0;
+                        if (ans.points_awarded !== null && ans.points_awarded !== undefined) defPts = ans.points_awarded;
+
+                        html += `
+                        <div class="input-group" style="margin:0;">
+                            <label>Puntos a otorgar (Sugerido: ${defPts})</label>
+                            <input type="number" class="input-control manual-grade-input" data-ansid="${ans.id}" min="0" max="${points}" step="0.5" value="${defPts}" required>
+                        </div>
+                        `;
+                    }
+                    html += `</div>`;
+                });
+
+                document.getElementById('gradeModalContainer').innerHTML = html;
+            } catch (e) {
+                document.getElementById('gradeModalContainer').innerHTML = 'Error al cargar.';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('formGradeSubmission').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const attemptId = document.getElementById('gradeModalAttemptId').value;
+                const inputs = document.querySelectorAll('.manual-grade-input');
+
+                let totalScore = 0;
+                inputs.forEach(inp => {
+                    totalScore += parseFloat(inp.value);
+                });
+
+                let finalGrade = (totalScore / 25) * 10;
+                finalGrade = Math.round(finalGrade * 10) / 10;
+                if (finalGrade > 10) finalGrade = 10; // límite superior
+
+                if (!await glassConfirm(`La calificación final calculada es ${finalGrade}/10 (Puntaje crudo: ${totalScore}). ¿Guardar?`)) return;
+
+                try {
+                    // Update user answers
+                    for (const inp of inputs) {
+                        await supabase.from('user_answers').update({ points_awarded: parseFloat(inp.value) }).eq('id', inp.dataset.ansid);
+                    }
+
+                    const isPassed = finalGrade >= 6;
+
+                    // Update attempt
+                    const { data: attemptInfo, error } = await supabase.from('exam_attempts').update({
+                        grade: finalGrade,
+                        status: 'calificado',
+                        is_passed: isPassed
+                    }).eq('id', attemptId).select().single();
+
+                    // Update Progress if passed
+                    if (!error && isPassed && attemptInfo) {
+                        const { data: progress } = await supabase.from('progress').select('*').eq('user_id', attemptInfo.user_id).single();
+                        if (progress) {
+                            let updates = {};
+                            updates[`module_${attemptInfo.module_id}_progress`] = 100;
+                            const newTotal = (
+                                (attemptInfo.module_id == 1 ? 100 : progress.module_1_progress) +
+                                (attemptInfo.module_id == 2 ? 100 : progress.module_2_progress) +
+                                (attemptInfo.module_id == 3 ? 100 : progress.module_3_progress) +
+                                (attemptInfo.module_id == 4 ? 100 : progress.module_4_progress)
+                            ) / 4;
+                            updates.total_progress = newTotal;
+                            await supabase.from('progress').update(updates).eq('user_id', attemptInfo.user_id);
+                        }
+                    }
+
+                    if (!error) {
+                        await glassAlert('Calificación guardada exitosamente');
+                        document.getElementById('gradeModal').style.display = 'none';
+                        loadPendingGrades();
+                        loadStats();
+                    }
+                } catch (e) { await glassAlert("Error al calificar"); }
+            });
+        });
+
+        // Intercepción del click en las tabs para recargar las tablas
+        const originalSwitchTab = window.switchTab;
+        window.switchTab = function (tabId, el) {
+            if (originalSwitchTab) originalSwitchTab(tabId, el);
+            if (tabId === 'tab-constructor') loadQuestions();
+            if (tabId === 'tab-grader') loadPendingGrades();
+        };
+
+        loadStats();
+
+        // ================= SUPABASE REALTIME (Silent Refresh) =================
+        supabase.channel('admin-realtime')
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'users', filter: `id=eq.${currentUser.id}` }, payload => {
+                sessionStorage.removeItem('user');
+                window.location.href = '../index.html';
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, payload => {
+                if (typeof loadUsers === 'function') loadUsers();
+                if (typeof loadStats === 'function') loadStats();
+                if (typeof loadMentors === 'function') loadMentors();
+                if (typeof loadAdmins === 'function') loadAdmins();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'progress' }, payload => {
+                if (typeof loadCerts === 'function') loadCerts();
+                if (typeof loadStats === 'function') loadStats();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'exam_attempts' }, payload => {
+                if (typeof loadPendingGrades === 'function') loadPendingGrades();
+                if (typeof loadStats === 'function') loadStats();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'exams_config' }, payload => {
+                if (typeof loadExamsConfig === 'function') loadExamsConfig();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, payload => {
+                if (typeof loadAuditLogs === 'function') loadAuditLogs();
+            })
+            .subscribe();
+    </script>
+
+    <!-- Grade Modal -->
+    <div class="modal-overlay" id="gradeModal"
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 9999; justify-content: center; align-items: center; overflow-y: auto;">
+        <div class="glass-panel"
+            style="width: 90%; max-width: 600px; padding: 30px; position: relative; max-height: 90vh; overflow-y: auto;">
+            <button onclick="document.getElementById('gradeModal').style.display='none'"
+                style="position: absolute; right: 20px; top: 20px; background: transparent; border: none; color: white; cursor: pointer; font-size: 1.2rem;">✖</button>
+            <h2 class="text-gradient" id="gradeModalTitle" style="text-align: center; margin-bottom: 20px;">Calificando
+            </h2>
+
+            <form id="formGradeSubmission" style="display: flex; flex-direction: column; gap: 15px;">
+                <input type="hidden" id="gradeModalAttemptId">
+                <div id="gradeModalContainer">
+                    <!-- Dinámico -->
+                </div>
+                <button type="submit" class="btn-primary" style="margin-top: 10px;">Guardar Calificación y
+                    Enviar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Perfil Modal (Glassmorphism) -->
+    <div class="modal-overlay" id="profileModal"
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="glass-panel" style="width: 90%; max-width: 400px; padding: 30px; position: relative;">
+            <button onclick="document.getElementById('profileModal').style.display='none'"
+                style="position: absolute; right: 20px; top: 20px; background: transparent; border: none; color: white; cursor: pointer; font-size: 1.2rem;">✖</button>
+            <h2 class="text-gradient" style="text-align: center; margin-bottom: 20px;">Mi Perfil</h2>
+
+            <form id="modalProfileForm" style="display: flex; flex-direction: column; gap: 15px;">
+                <div style="text-align: center;">
+                    <div id="modalAvatarPreview"
+                        style="width: 100px; height: 100px; border-radius: 50%; background: #374151; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; font-size: 2rem; overflow: hidden; border: 3px solid var(--accent-blue);">
+                        <!-- Avatar -->
+                    </div>
+                    <label for="modalAvatarInput"
+                        style="cursor: pointer; color: var(--accent-blue); font-size: 0.9rem; text-decoration: underline;">Cambiar
+                        Foto</label>
+                    <input type="file" id="modalAvatarInput" accept="image/*" style="display: none;">
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Nombre Completo</label>
+                    <input type="text" id="modalProfileName" class="input-control" required>
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Teléfono / Contacto</label>
+                    <input type="text" id="modalProfileTelefono" class="input-control" placeholder="Ej. +503 7777-7777">
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Nueva Contraseña (Opcional)</label>
+                    <input type="password" id="modalProfilePass" class="input-control"
+                        placeholder="Dejar en blanco para no cambiar">
+                </div>
+
+                <div class="input-group" style="margin: 0; display: flex; align-items: center; gap: 10px;"
+                    id="modalProfilePrivateContainer">
+                    <input type="checkbox" id="modalProfilePrivate" style="width: auto;">
+                    <label for="modalProfilePrivate"
+                        style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">Mantener mis datos privados
+                        (Ocultar foto y teléfono al público)</label>
+                </div>
+
+                <button type="submit" class="btn-primary" style="margin-top: 10px;">Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Lógica del Modal
+        const profileModal = document.getElementById('profileModal');
+        const userProfileBtn = document.querySelector('.user-profile');
+
+        if (userProfileBtn) {
+            userProfileBtn.style.cursor = 'pointer';
+            userProfileBtn.title = "Clic para editar perfil";
+            userProfileBtn.addEventListener('click', () => {
+                const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+                if (sessionUser) {
+                    document.getElementById('modalProfileName').value = sessionUser.nombre;
+                    document.getElementById('modalProfileTelefono').value = sessionUser.telefono || '';
+                    document.getElementById('modalProfilePrivate').checked = sessionUser.is_private === 1;
+
+                    // Ocultar la opción de privado si es super admin o admin, para que ellos siempre sean públicos
+                    if (sessionUser.rol === 'admin' || sessionUser.rol === 'super_admin') {
+                        document.getElementById('modalProfilePrivateContainer').style.display = 'none';
+                    } else {
+                        document.getElementById('modalProfilePrivateContainer').style.display = 'flex';
+                    }
+
+                    if (sessionUser.avatar_url) {
+                        document.getElementById('modalAvatarPreview').innerHTML = `<img src="http://localhost:3000${sessionUser.avatar_url}" style="width:100%; height:100%; object-fit:cover;">`;
+                    } else {
+                        document.getElementById('modalAvatarPreview').innerText = sessionUser.nombre.charAt(0);
+                    }
+                }
+                profileModal.style.display = 'flex';
+            });
+        }
+
+        let selectedAvatarFile = null;
+        document.getElementById('modalAvatarInput').addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                selectedAvatarFile = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('modalAvatarPreview').innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover;">`;
+                };
+                reader.readAsDataURL(selectedAvatarFile);
+            }
+        });
+
+        document.getElementById('modalProfileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+
+            const nombre = document.getElementById('modalProfileName').value;
+            const telefono = document.getElementById('modalProfileTelefono').value;
+            const isPrivate = document.getElementById('modalProfilePrivateContainer').style.display === 'none' ? false : document.getElementById('modalProfilePrivate').checked;
+            const pass = document.getElementById('modalProfilePass').value;
+
+            try {
+                let updates = { nombre, telefono, is_private: isPrivate };
+                if (pass) updates.password = pass;
+
+                if (selectedAvatarFile) {
+                    updates.avatar_url = await uploadToSupabase(selectedAvatarFile, 'avatars');
+                }
+
+                const { data: updatedUser, error } = await supabase.from('users').update(updates).eq('id', sessionUser.id).select().single();
+
+                if (!error && updatedUser) {
+                    sessionStorage.setItem('user', JSON.stringify(updatedUser));
+                    await glassAlert('Perfil actualizado.');
+                    window.location.reload();
+                } else {
+                    await glassAlert(error ? error.message : 'Error actualizando perfil');
+                }
+            } catch (e) { await glassAlert('Error actualizando perfil'); }
+        });
+    </script>
+
+    <script>
+        // Dinamica del Sidebar Profile
+        document.addEventListener('DOMContentLoaded', () => {
+            const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+            if (sessionUser) {
+                const sName = document.getElementById('sidebarName');
+                const sRole = document.getElementById('sidebarRole');
+                const sAvatar = document.getElementById('sidebarAvatar');
+                if (sName) sName.innerText = sessionUser.nombre;
+                if (sRole) sRole.innerText = sessionUser.rol === 'super_admin' ? 'Super Admin' : (sessionUser.rol === 'admin' ? 'Administrador' : 'Docente');
+                if (sAvatar) {
+                    if (sessionUser.avatar_url) {
+                        sAvatar.innerHTML = `<img src="${sessionUser.avatar_url}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+                    } else {
+                        sAvatar.innerHTML = `<span style="font-size: 1.2rem; color: white;">${sessionUser.nombre.charAt(0).toUpperCase()}</span>`;
+                    }
+                }
+            }
+        });
+        // ================= GESTIÓN DE ADMINS =================
+        async function loadAdmins() {
+            try {
+                const { data: admins, error } = await supabase.from('users').select('*').in('rol', ['admin', 'super_admin']);
+                const tbody = document.getElementById('tableAdmins');
+                tbody.innerHTML = '';
+                if (!error && admins) {
+                    admins.forEach(a => {
+                        let av = a.avatar_url ? `<img src="${a.avatar_url}" class="small-avatar">` : `<div class="small-avatar">${a.nombre.charAt(0).toUpperCase()}</div>`;
+                        let badge = a.rol === 'super_admin' ? `<span class="status-badge" style="background: rgba(167, 139, 250, 0.2); color: #a855f7;">Super Admin</span>` : `<span class="status-badge status-proceso">Admin</span>`;
+                        let delBtn = a.id !== currentUser.id ? `<button class="action-btn btn-danger" onclick="deleteAdmin('${a.id}')">Borrar</button>` : `<span style="font-size:0.8rem; color:var(--text-secondary);">Tú</span>`;
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${av}</td>
+                                <td style="font-weight: 500;">${a.nombre}</td>
+                                <td>${a.username}</td>
+                                <td>${badge}</td>
+                                <td>${delBtn}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        document.getElementById('formNewAdmin').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nombre = document.getElementById('adminName').value;
+            const username = document.getElementById('adminUser').value;
+            const password = document.getElementById('adminPass').value;
+            const rol = document.getElementById('adminRol').value;
+
+            try {
+                const { data: exist } = await supabase.from('users').select('id').eq('username', username).single();
+                if (exist) {
+                    await glassAlert('El usuario ya existe.', 'error');
+                    return;
+                }
+
+                const { error } = await supabase.from('users').insert([{
+                    nombre, username, password, rol, estado_password: 'fija'
+                }]);
+
+                if (!error) {
+                    await logAudit("CREAR_ADMIN", { username, rol });
+                    await glassAlert("Administrador creado exitosamente", "success");
+                    document.getElementById('formNewAdmin').style.display = 'none';
+                    loadAdmins();
+                } else {
+                    await glassAlert(error.message || "Error creando admin", "error");
+                }
+            } catch (e) { await glassAlert("Error de conexión", "error"); }
+        });
+
+        async function deleteAdmin(id) {
+            if (!(await glassConfirm("¿Seguro que deseas eliminar a este administrador? No podrá acceder más al sistema."))) return;
+            try {
+                const { error } = await supabase.from('users').delete().eq('id', id);
+                if (!error) {
+                    await logAudit("ELIMINAR_ADMIN", { id });
+                    await glassAlert("Administrador eliminado", "success");
+                    loadAdmins();
+                } else {
+                    await glassAlert("Error eliminando admin", "error");
+                }
+            } catch (e) { await glassAlert("Error de conexión", "error"); }
+        }
+
+        // ================= AUDIT LOGS =================
+        async function loadAuditLogs() {
+            try {
+                const { data: logs, error } = await supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(50);
+                const tbody = document.getElementById('tableAudit');
+                tbody.innerHTML = '';
+                if (!error && logs) {
+                    logs.forEach(l => {
+                        const date = new Date(l.timestamp).toLocaleString();
+                        const jsonDetails = encodeURIComponent(l.details_json || '{}');
+                        tbody.innerHTML += `
+                            <tr>
+                                <td style="font-size: 0.85rem; color: var(--text-secondary);">${date}</td>
+                                <td style="font-weight: 500;">${l.admin_name}</td>
+                                <td><span class="status-badge" style="background: rgba(255,255,255,0.1); color: white;">${l.action}</span></td>
+                                <td><button class="action-btn" onclick="showAuditDetails('${jsonDetails}')">Ver Detalles</button></td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay registros recientes.</td></tr>';
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function logAudit(action, details) {
+            try {
+                const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+                if (!sessionUser) return;
+                await supabase.from('audit_logs').insert([{
+                    admin_id: sessionUser.id,
+                    admin_name: sessionUser.nombre,
+                    action: action,
+                    details_json: JSON.stringify(details)
+                }]);
+            } catch (e) { console.error("Error logging audit", e); }
+        }
+
+        function showAuditDetails(encodedJson) {
+            try {
+                const details = JSON.parse(decodeURIComponent(encodedJson));
+                const formatted = JSON.stringify(details, null, 2);
+                glassAlert(`Detalles técnicos de la acción:\n\n${formatted}`, 'info');
+            } catch (e) {
+                glassAlert("No se pudieron cargar los detalles.", 'error');
+            }
+        }
+    </script> <!-- Custom Alert/Confirm Modals -->
+    <div class="modal-overlay" id="glassAlertModal"
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 10000; justify-content: center; align-items: center;">
+        <div class="glass-panel"
+            style="width: 90%; max-width: 500px; padding: 30px; text-align: center; border: 1px solid rgba(255,255,255,0.2); max-height: 80vh; overflow-y: auto;">
+            <div id="glassAlertIcon" style="font-size: 3rem; margin-bottom: 15px;">⚠️</div>
+            <h3 id="glassAlertTitle" class="text-gradient" style="margin-bottom: 10px;">Aviso</h3>
+            <pre id="glassAlertMessage"
+                style="color: var(--text-secondary); margin-bottom: 25px; font-size: 0.95rem; white-space: pre-wrap; text-align: left; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; font-family: monospace;"></pre>
+            <div id="glassAlertButtons" style="display: flex; gap: 15px; justify-content: center;">
+                <!-- Botones inyectados por JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.glassAlert = function (msg, type = 'info') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('glassAlertModal');
+                document.getElementById('glassAlertMessage').innerText = msg;
+                document.getElementById('glassAlertTitle').innerText = type === 'error' ? 'Error' : (type === 'success' ? 'Éxito' : 'Aviso');
+                document.getElementById('glassAlertIcon').innerText = type === 'error' ? '❌' : (type === 'success' ? '✅' : '⚠️');
+
+                const btnContainer = document.getElementById('glassAlertButtons');
+                btnContainer.innerHTML = '<button class="btn-primary" id="glassAlertOkBtn" style="min-width: 100px;">Aceptar</button>';
+
+                modal.style.display = 'flex';
+
+                document.getElementById('glassAlertOkBtn').onclick = () => {
+                    modal.style.display = 'none';
+                    resolve(true);
+                };
+            });
+        };
+
+        window.glassConfirm = function (msg) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('glassAlertModal');
+                document.getElementById('glassAlertMessage').innerText = msg;
+                document.getElementById('glassAlertTitle').innerText = 'Confirmar Acción';
+                document.getElementById('glassAlertIcon').innerText = '❓';
+
+                const btnContainer = document.getElementById('glassAlertButtons');
+                btnContainer.innerHTML = `
+                    <button class="btn-secondary" id="glassConfirmCancelBtn" style="min-width: 100px;">Cancelar</button>
+                    <button class="btn-danger" id="glassConfirmOkBtn" style="min-width: 100px;">Aceptar</button>
+                `;
+
+                modal.style.display = 'flex';
+
+                document.getElementById('glassConfirmCancelBtn').onclick = () => {
+                    modal.style.display = 'none';
+                    resolve(false);
+                };
+                document.getElementById('glassConfirmOkBtn').onclick = () => {
+                    modal.style.display = 'none';
+                    resolve(true);
+                };
+            });
+        };
+
+        // ================= FRONTEND UTILS (Buscador y Exportador CSV) =================
+        window.filterTable = function (inputId, tableBodyId) {
+            const input = document.getElementById(inputId);
+            const filter = input.value.toLowerCase();
+            const tbody = document.getElementById(tableBodyId);
+            const trs = tbody.getElementsByTagName('tr');
+
+            for (let i = 0; i < trs.length; i++) {
+                const text = trs[i].innerText.toLowerCase();
+                if (text.indexOf(filter) > -1) {
+                    trs[i].style.display = "";
+                } else {
+                    trs[i].style.display = "none";
+                }
+            }
+        };
+
+        window.exportTableToCSV = function (tableBodyId, filename) {
+            const tbody = document.getElementById(tableBodyId);
+            const trs = tbody.getElementsByTagName('tr');
+            let csv = [];
+
+            for (let i = 0; i < trs.length; i++) {
+                if (trs[i].style.display === "none") continue; // No exportar filas ocultas
+                let row = [];
+                const cols = trs[i].querySelectorAll('td, th');
+
+                for (let j = 0; j < cols.length - 1; j++) { // Evitamos la última columna (Acciones)
+                    let data = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, " ").replace(/"/g, '""');
+                    row.push('"' + data + '"');
+                }
+                if (row.length > 0) csv.push(row.join(','));
+            }
+
+            const csvFile = new Blob(["\uFEFF" + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const downloadLink = document.createElement("a");
+            downloadLink.download = filename;
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = "none";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        };
+    </script>
+</body>
+
+</html>

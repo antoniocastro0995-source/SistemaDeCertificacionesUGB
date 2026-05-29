@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mentores | UGB Certificaciones</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+
+    <!-- Supabase SDK & Config -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabase-config.js"></script>
+
+    <style>
+        .mentors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .mentor-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .mentor-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-blue);
+        }
+
+        .mentor-photo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 15px auto;
+            border: 3px solid var(--accent-blue);
+        }
+
+        .mentor-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+
+        .mentor-role {
+            font-size: 0.9rem;
+            color: var(--accent-blue);
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .btn-whatsapp {
+            display: inline-block;
+            background: #25D366;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            width: 100%;
+            transition: background 0.3s;
+        }
+
+        .btn-whatsapp:hover {
+            background: #128C7E;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <button class="mobile-toggle" id="mobileToggle">☰</button>
+
+    <div class="dashboard-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand" style="text-align:center; margin-bottom: 20px;">
+                <img src="../logo/logoUGB.png" alt="UGB Logo" style="max-width: 150px; height: auto;">
+            </div>
+            <nav>
+                <ul class="nav-menu">
+                    <li><a href="student-dashboard.html" class="nav-item">Progreso General</a></li>
+                    <li><a href="modules.html" class="nav-item">Módulos y Temario</a></li>
+                    <li><a href="exams.html" class="nav-item">Evaluaciones</a></li>
+                    <li><a href="certificate.html" class="nav-item">Certificación</a></li>
+                    <li><a href="mentors.html" class="nav-item active">Directorio</a></li>
+
+                </ul>
+            </nav>
+            <div class="user-profile" title="Clic para editar perfil" style="cursor: pointer;"
+                id="sidebarProfileContainer">
+                <div class="avatar" id="sidebarAvatar"
+                    style="overflow: hidden; display: flex; justify-content: center; align-items: center;">?</div>
+                <div>
+                    <div id="sidebarName" style="font-weight: 500; color: var(--text-primary);">Usuario</div>
+                    <div id="sidebarRole" style="font-size: 0.8rem; color: var(--text-secondary);">Rol</div>
+                </div>
+            </div>
+            <a href="../index.html" class="nav-item" style="color: #f87171;">Cerrar Sesión</a>
+        </aside>
+
+        <main class="main-content">
+            <header class="header-top">
+                <div>
+                    <h1 style="font-size: 2rem;">Directorio de la Comunidad</h1>
+                    <p style="color: var(--text-secondary); margin-top: 5px;">Conoce a tus mentores, administradores y
+                        compañeros.</p>
+                </div>
+            </header>
+
+            <div class="mentors-grid" id="mentorsContainer">
+                <!-- Se llena mediante JS -->
+                <p style="color: var(--text-secondary);">Cargando mentores...</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('mobileToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('open');
+        });
+
+        const currentUser = JSON.parse(sessionStorage.getItem('user'));
+        if (!currentUser) window.location.href = '../index.html';
+
+        const sNameMentors = document.getElementById('sidebarName');
+        const sAvatarMentors = document.getElementById('sidebarAvatar');
+
+        if (sNameMentors) sNameMentors.innerText = currentUser.nombre;
+        if (currentUser.avatar_url && sAvatarMentors) {
+            sAvatarMentors.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%; height:100%; object-fit:cover;">`;
+        } else if (sAvatarMentors) {
+            sAvatarMentors.innerText = currentUser.nombre.charAt(0);
+        }
+
+        async function loadMentors() {
+            try {
+                const { data: mentors, error } = await supabase.from('users').select('*');
+
+                const container = document.getElementById('mentorsContainer');
+                container.innerHTML = '';
+
+                if (error || !mentors || mentors.length === 0) {
+                    container.innerHTML = `<p style="color: var(--text-secondary); text-align: center; grid-column: 1 / -1;">No hay usuarios en la comunidad aún.</p>`;
+                    return;
+                }
+
+                const admins = mentors.filter(m => m.rol === 'admin' || m.rol === 'super_admin');
+                const docentes = mentors.filter(m => m.rol !== 'admin' && m.rol !== 'super_admin');
+
+                const renderCard = (m) => {
+                    const isPriv = m.is_private === true || m.is_private === 1;
+                    const avatarStr = m.avatar_url ? `<img src="${m.avatar_url}" alt="${m.nombre}" class="mentor-photo">` : `<div class="mentor-photo" style="display:flex; justify-content:center; align-items:center; font-size:3rem; background:#374151; color:white;">${m.nombre.charAt(0).toUpperCase()}</div>`;
+
+                    const roleLabel = (m.rol === 'admin' || m.rol === 'super_admin') ? 'Mentor / Admin' : 'Docente';
+                    const roleColor = (m.rol === 'admin' || m.rol === 'super_admin') ? 'var(--accent-blue)' : 'var(--text-secondary)';
+
+                    let contactSection = `<div style="color:var(--text-secondary); font-size:0.9rem; padding:10px;">Sin contacto registrado</div>`;
+                    if (isPriv) {
+                        contactSection = `<div style="color:var(--text-secondary); font-size:0.9rem; padding:10px; background:rgba(0,0,0,0.2); border-radius:8px;">Contacto Privado</div>`;
+                    } else if (m.telefono) {
+                        const cleanPhone = m.telefono.replace(/[^0-9+]/g, '');
+                        contactSection = `<a href="tel:${cleanPhone}" style="color:white; font-size:1rem; padding:10px; background:rgba(37,211,102,0.1); border:1px solid #25D366; border-radius:8px; display:block; text-align:center; text-decoration:none;">${m.telefono}</a>`;
+                    }
+
+                    return `
+                        <div class="mentor-card">
+                            ${avatarStr}
+                            <h3 class="mentor-name">${m.nombre}</h3>
+                            <div class="mentor-role" style="color: ${roleColor};">${roleLabel}</div>
+                            ${contactSection}
+                        </div>
+                    `;
+                };
+
+                let html = '';
+
+                if (admins.length > 0) {
+                    html += `<h2 style="grid-column: 1 / -1; color: var(--accent-blue); margin-top: 10px; margin-bottom: 10px; font-size: 1.5rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">Mentores y Administradores</h2>`;
+                    admins.forEach(m => { html += renderCard(m); });
+                }
+
+                if (docentes.length > 0) {
+                    html += `<h2 style="grid-column: 1 / -1; color: var(--text-primary); margin-top: 30px; margin-bottom: 10px; font-size: 1.5rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">Docentes y Compañeros</h2>`;
+                    docentes.forEach(m => { html += renderCard(m); });
+                }
+
+                container.innerHTML = html;
+
+            } catch (e) {
+                console.error(e);
+                document.getElementById('mentorsContainer').innerHTML = `<p style="color: #f87171;">Error conectando al servidor.</p>`;
+            }
+        }
+
+        loadMentors();
+    </script>
+
+    <!-- Perfil Modal (Glassmorphism) -->
+    <div class="modal-overlay" id="profileModal"
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="glass-panel" style="width: 90%; max-width: 400px; padding: 30px; position: relative;">
+            <button onclick="document.getElementById('profileModal').style.display='none'"
+                style="position: absolute; right: 20px; top: 20px; background: transparent; border: none; color: white; cursor: pointer; font-size: 1.2rem;">✖</button>
+            <h2 class="text-gradient" style="text-align: center; margin-bottom: 20px;">Mi Perfil</h2>
+
+            <form id="modalProfileForm" style="display: flex; flex-direction: column; gap: 15px;">
+                <div style="text-align: center;">
+                    <div id="modalAvatarPreview"
+                        style="width: 100px; height: 100px; border-radius: 50%; background: #374151; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; font-size: 2rem; overflow: hidden; border: 3px solid var(--accent-blue);">
+                        <!-- Avatar -->
+                    </div>
+                    <label for="modalAvatarInput"
+                        style="cursor: pointer; color: var(--accent-blue); font-size: 0.9rem; text-decoration: underline;">Cambiar
+                        Foto</label>
+                    <input type="file" id="modalAvatarInput" accept="image/*" style="display: none;">
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Nombre Completo</label>
+                    <input type="text" id="modalProfileName" class="input-control" required>
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Teléfono / Contacto</label>
+                    <input type="text" id="modalProfileTelefono" class="input-control" placeholder="Ej. +503 7777-7777">
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Nueva Contraseña (Opcional)</label>
+                    <input type="password" id="modalProfilePass" class="input-control"
+                        placeholder="Dejar en blanco para no cambiar">
+                </div>
+
+                <div class="input-group" style="margin: 0; display: flex; align-items: center; gap: 10px;"
+                    id="modalProfilePrivateContainer">
+                    <input type="checkbox" id="modalProfilePrivate" style="width: auto;">
+                    <label for="modalProfilePrivate"
+                        style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">Mantener mis datos privados
+                        (Ocultar foto y teléfono al público)</label>
+                </div>
+
+                <button type="submit" class="btn-primary" style="margin-top: 10px;">Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Lógica del Modal
+        const profileModal = document.getElementById('profileModal');
+        const userProfileBtn = document.querySelector('.user-profile');
+
+        if (userProfileBtn) {
+            userProfileBtn.style.cursor = 'pointer';
+            userProfileBtn.title = "Clic para editar perfil";
+            userProfileBtn.addEventListener('click', () => {
+                const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+                if (sessionUser) {
+                    document.getElementById('modalProfileName').value = sessionUser.nombre;
+                    document.getElementById('modalProfileTelefono').value = sessionUser.telefono || '';
+                    document.getElementById('modalProfilePrivate').checked = sessionUser.is_private === 1;
+
+                    // Ocultar la opción de privado si es super admin o admin, para que ellos siempre sean públicos
+                    if (sessionUser.rol === 'admin' || sessionUser.rol === 'super_admin') {
+                        document.getElementById('modalProfilePrivateContainer').style.display = 'none';
+                    } else {
+                        document.getElementById('modalProfilePrivateContainer').style.display = 'flex';
+                    }
+
+                    if (sessionUser.avatar_url) {
+                        document.getElementById('modalAvatarPreview').innerHTML = `<img src="${sessionUser.avatar_url}" style="width:100%; height:100%; object-fit:cover;">`;
+                    } else {
+                        document.getElementById('modalAvatarPreview').innerText = sessionUser.nombre.charAt(0);
+                    }
+                }
+                profileModal.style.display = 'flex';
+            });
+        }
+
+        let selectedAvatarFile = null;
+        document.getElementById('modalAvatarInput').addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                selectedAvatarFile = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('modalAvatarPreview').innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover;">`;
+                };
+                reader.readAsDataURL(selectedAvatarFile);
+            }
+        });
+
+        document.getElementById('modalProfileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+            const formData = new FormData();
+            formData.append('userId', sessionUser.id);
+            formData.append('nombre', document.getElementById('modalProfileName').value);
+            formData.append('telefono', document.getElementById('modalProfileTelefono').value);
+
+            // Si el contenedor está oculto (admin/super_admin), se enviará como no privado por defecto.
+            const isPrivate = document.getElementById('modalProfilePrivateContainer').style.display === 'none' ? false : document.getElementById('modalProfilePrivate').checked;
+            formData.append('is_private', isPrivate);
+
+            const pass = document.getElementById('modalProfilePass').value;
+            if (pass) formData.append('password', pass);
+            if (selectedAvatarFile) formData.append('avatar', selectedAvatarFile);
+
+            try {
+                let updates = {
+                    nombre: document.getElementById('modalProfileName').value,
+                    telefono: document.getElementById('modalProfileTelefono').value,
+                    is_private: document.getElementById('modalProfilePrivateContainer').style.display === 'none' ? false : document.getElementById('modalProfilePrivate').checked
+                };
+
+                const pass = document.getElementById('modalProfilePass').value;
+                if (pass) updates.password = pass;
+
+                if (selectedAvatarFile) {
+                    const avatarUrl = await uploadToSupabase(selectedAvatarFile, 'avatars');
+                    updates.avatar_url = avatarUrl;
+                }
+
+                const { data, error } = await supabase
+                    .from('users')
+                    .update(updates)
+                    .eq('id', sessionUser.id)
+                    .select()
+                    .single();
+
+                if (!error && data) {
+                    sessionStorage.setItem('user', JSON.stringify(data));
+                    alert('Perfil actualizado.');
+                    window.location.reload();
+                } else {
+                    alert('Error actualizando perfil en Supabase');
+                }
+            } catch (e) { console.error(e); alert('Error actualizando perfil'); }
+        });
+    </script>
+
+    <script>
+        // Dinamica del Sidebar Profile
+        document.addEventListener('DOMContentLoaded', () => {
+            const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+            if (sessionUser) {
+                const sName = document.getElementById('sidebarName');
+                const sRole = document.getElementById('sidebarRole');
+                const sAvatar = document.getElementById('sidebarAvatar');
+                if (sName) sName.innerText = sessionUser.nombre;
+                if (sRole) sRole.innerText = sessionUser.rol === 'super_admin' ? 'Super Admin' : (sessionUser.rol === 'admin' ? 'Administrador' : 'Docente');
+                if (sAvatar) {
+                    if (sessionUser.avatar_url) {
+                        sAvatar.innerHTML = '<img src="' + sessionUser.avatar_url + '" style="width:100%; height:100%; object-fit:cover;">';
+                    } else {
+                        sAvatar.innerText = sessionUser.nombre.charAt(0).toUpperCase();
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

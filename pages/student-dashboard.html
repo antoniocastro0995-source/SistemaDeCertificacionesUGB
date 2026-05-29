@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Docente | UGB Certificaciones</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Supabase SDK & Config -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabase-config.js"></script>
+</head>
+
+<body>
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- Toggle button for mobile -->
+    <button class="mobile-toggle" id="mobileToggle" aria-label="Abrir Menú">☰</button>
+
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="brand" style="text-align:center; margin-bottom: 20px;">
+                <img src="../logo/logoUGB.png" alt="UGB Logo" style="max-width: 150px; height: auto;">
+            </div>
+            <nav>
+                <ul class="nav-menu">
+                    <li><a href="student-dashboard.html" class="nav-item active">Progreso General</a></li>
+                    <li><a href="modules.html" class="nav-item">Módulos y Temario</a></li>
+                    <li><a href="exams.html" class="nav-item">Evaluaciones</a></li>
+                    <li><a href="certificate.html" class="nav-item">Certificación</a></li>
+                    <li><a href="mentors.html" class="nav-item">Contacto Mentores</a></li>
+                </ul>
+            </nav>
+            <div class="user-profile" title="Clic para editar perfil" style="cursor: pointer;"
+                id="sidebarProfileContainer">
+                <div class="avatar" id="sidebarAvatar"
+                    style="overflow: hidden; display: flex; justify-content: center; align-items: center;">?</div>
+                <div>
+                    <div id="sidebarName" style="font-weight: 500; color: var(--text-primary);">Usuario</div>
+                    <div id="sidebarRole" style="font-size: 0.8rem; color: var(--text-secondary);">Rol</div>
+                </div>
+            </div>
+            <a href="../index.html" class="nav-item" style="color: #f87171;">Cerrar Sesión</a>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header-top">
+                <div>
+                    <h1 style="font-size: 2rem;" id="welcomeText">Hola.</h1>
+                    <p style="color: var(--text-secondary); margin-top: 5px;">Continúa con tu formación en Innovación
+                        Tecnológica.</p>
+                </div>
+                <a href="modules.html" class="btn-primary" style="text-decoration:none;">Continuar Estudio</a>
+            </header>
+
+            <div class="bento-grid">
+                <!-- Progreso Global -->
+                <div class="glass-panel card span-2">
+                    <h2 class="card-title">Progreso de Certificación</h2>
+                    <div class="card-value" id="progressValue">Cargando...</div>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;" id="progressText">Conectando con la base
+                        de datos.</p>
+                    <div class="progress-container" style="height: 12px; margin-top: 20px;">
+                        <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- Estado Certificado -->
+                <div class="glass-panel card">
+                    <h2 class="card-title">Estado del Certificado</h2>
+                    <div class="card-value" style="font-size: 1.5rem; display:flex; align-items:center; gap: 10px;">
+                        <span class="status-badge status-proceso" id="certStatus">En Trámite</span>
+                    </div>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: auto;">Completa los 4
+                        módulos y aprueba con un promedio general esperado.</p>
+                </div>
+
+                <!-- Módulos (Temario Resumido) -->
+                <div class="glass-panel card span-2">
+                    <h2 class="card-title">Resumen de Módulos</h2>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Módulo</th>
+                                    <th>Descripción</th>
+                                    <th>Progreso</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modulesTableBody">
+                                <!-- Llenado por JS dinámicamente -->
+                                <tr>
+                                    <td colspan="4" style="text-align:center;">Cargando información...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Gráfica de Rendimiento -->
+                <div class="glass-panel card span-1" style="display: flex; flex-direction: column;">
+                    <h2 class="card-title">Desempeño Individual</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 15px;">Calificaciones
+                        obtenidas en evaluaciones</p>
+                    <div style="flex: 1; position: relative; min-height: 200px;">
+                        <canvas id="studentPerformanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Script de lógica y conexión -->
+    <script>
+        const currentUser = JSON.parse(sessionStorage.getItem('user'));
+        if (!currentUser) window.location.href = '../index.html';
+
+        document.getElementById('mobileToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('open');
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboardData();
+
+            // ================= SUPABASE REALTIME (Silent Refresh) =================
+            supabase.channel('student-realtime')
+                .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'users', filter: `id=eq.${currentUser.id}` }, payload => {
+                    sessionStorage.removeItem('user');
+                    window.location.href = '../index.html';
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'progress', filter: `user_id=eq.${currentUser.id}` }, payload => {
+                    loadDashboardData();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'exam_attempts', filter: `user_id=eq.${currentUser.id}` }, payload => {
+                    loadDashboardData();
+                })
+                .subscribe();
+        });
+
+        async function loadDashboardData() {
+            const userId = currentUser.id;
+            // Setear bienvenida
+            document.getElementById('welcomeText').innerText = 'Hola, ' + currentUser.nombre.split(' ')[0] + '.';
+
+            try {
+                let { data: prog, error } = await supabase
+                    .from('progress')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .maybeSingle();
+
+                if (!prog && !error) {
+                    const { data: newProg, error: insErr } = await supabase.from('progress').insert([{ user_id: userId }]).select().single();
+                    if (!insErr) prog = newProg;
+                }
+
+                if (prog && !error) {
+
+                    document.getElementById('progressValue').innerText = `${prog.total_progress}% Completado`;
+                    document.getElementById('progressBar').style.width = `${prog.total_progress}%`;
+
+                    if (prog.total_progress === 0) {
+                        document.getElementById('progressText').innerText = "Aún no has iniciado tus módulos. Ve a Módulos y Temario para empezar.";
+                    } else if (prog.total_progress === 100) {
+                        document.getElementById('progressText').innerText = "¡Has completado todos los módulos!";
+                        document.getElementById('certStatus').className = "status-badge status-aprobado";
+                        document.getElementById('certStatus').innerText = prog.is_certified ? "Validado por Admin" : "Pendiente de Validación";
+                        if (!prog.is_certified) document.getElementById('certStatus').style.background = "#fde047";
+
+                        // Lanzar Confeti 🎉
+                        if (typeof confetti === 'function') {
+                            var duration = 3000;
+                            var end = Date.now() + duration;
+                            (function frame() {
+                                confetti({
+                                    particleCount: 5,
+                                    angle: 60,
+                                    spread: 55,
+                                    origin: { x: 0 },
+                                    colors: ['#3b82f6', '#10b981', '#fde047']
+                                });
+                                confetti({
+                                    particleCount: 5,
+                                    angle: 120,
+                                    spread: 55,
+                                    origin: { x: 1 },
+                                    colors: ['#3b82f6', '#10b981', '#fde047']
+                                });
+                                if (Date.now() < end) {
+                                    requestAnimationFrame(frame);
+                                }
+                            }());
+                        }
+                    } else {
+                        document.getElementById('progressText').innerText = "Sigue así, estás avanzando en tu certificación.";
+                    }
+
+                    const tbody = document.getElementById('modulesTableBody');
+                    tbody.innerHTML = `
+                        <tr>
+                            <td>1. Office Gestión (Ago)</td>
+                            <td>Word y Excel básico.</td>
+                            <td>${prog.module_1_progress}%</td>
+                            <td>${prog.module_1_progress === 100 ? '<span class="status-badge status-aprobado">Completado</span>' : '<span class="status-badge status-proceso">Pendiente</span>'}</td>
+                        </tr>
+                        <tr>
+                            <td>2. Canva (Sep)</td>
+                            <td>Diseño visual y presentaciones.</td>
+                            <td>${prog.module_2_progress}%</td>
+                            <td>${prog.module_2_progress === 100 ? '<span class="status-badge status-aprobado">Completado</span>' : '<span class="status-badge status-proceso">Pendiente</span>'}</td>
+                        </tr>
+                        <tr>
+                            <td>3. IA Aplicada (Oct)</td>
+                            <td>ChatGPT y herramientas IA.</td>
+                            <td>${prog.module_3_progress}%</td>
+                            <td>${prog.module_3_progress === 100 ? '<span class="status-badge status-aprobado">Completado</span>' : '<span class="status-badge status-proceso">Pendiente</span>'}</td>
+                        </tr>
+                        <tr>
+                            <td>4. Ciberseguridad (Nov)</td>
+                            <td>Protección de datos.</td>
+                            <td>${prog.module_4_progress}%</td>
+                            <td>${prog.module_4_progress === 100 ? '<span class="status-badge status-aprobado">Completado</span>' : '<span class="status-badge status-proceso">Pendiente</span>'}</td>
+                        </tr>
+                    `;
+                }
+            } catch (e) {
+                console.error("Error obteniendo progreso:", e);
+                document.getElementById('progressValue').innerText = "Error";
+                document.getElementById('progressText').innerText = "Asegúrate de que el backend SQLite esté corriendo.";
+            }
+            // CARGAR CHART.JS
+            try {
+                const { data: attempts, error: errAtt } = await supabase
+                    .from('exam_attempts')
+                    .select('module_id, grade')
+                    .eq('user_id', userId)
+                    .eq('status', 'calificado');
+
+                if (!errAtt) {
+                    let chartData = { grades: {} };
+                    if (attempts) {
+                        attempts.forEach(a => {
+                            chartData.grades[a.module_id] = a.grade;
+                        });
+                    }
+
+                    const ctx = document.getElementById('studentPerformanceChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Mod 1: Office', 'Mod 2: Canva', 'Mod 3: IA', 'Mod 4: Ciber'],
+                            datasets: [{
+                                label: 'Calificación Obtenida (0-10)',
+                                data: [
+                                    chartData.grades['1'] || 0,
+                                    chartData.grades['2'] || 0,
+                                    chartData.grades['3'] || 0,
+                                    chartData.grades['4'] || 0
+                                ],
+                                backgroundColor: [
+                                    'rgba(96, 165, 250, 0.6)',
+                                    'rgba(167, 139, 250, 0.6)',
+                                    'rgba(52, 211, 153, 0.6)',
+                                    'rgba(248, 113, 113, 0.6)'
+                                ],
+                                borderColor: [
+                                    'rgba(96, 165, 250, 1)',
+                                    'rgba(167, 139, 250, 1)',
+                                    'rgba(52, 211, 153, 1)',
+                                    'rgba(248, 113, 113, 1)'
+                                ],
+                                borderWidth: 1,
+                                borderRadius: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 10,
+                                    ticks: { color: 'rgba(255,255,255,0.7)' },
+                                    grid: { color: 'rgba(255,255,255,0.1)' }
+                                },
+                                x: {
+                                    ticks: { color: 'rgba(255,255,255,0.7)' },
+                                    grid: { display: false }
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("Error cargando gráfica:", err);
+            }
+        }
+    </script>
+
+    <!-- Perfil Modal (Glassmorphism) -->
+    <div class="modal-overlay" id="profileModal"
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="glass-panel" style="width: 90%; max-width: 400px; padding: 30px; position: relative;">
+            <button onclick="document.getElementById('profileModal').style.display='none'"
+                style="position: absolute; right: 20px; top: 20px; background: transparent; border: none; color: white; cursor: pointer; font-size: 1.2rem;">✖</button>
+            <h2 class="text-gradient" style="text-align: center; margin-bottom: 20px;">Mi Perfil</h2>
+
+            <form id="modalProfileForm" style="display: flex; flex-direction: column; gap: 15px;">
+                <div style="text-align: center;">
+                    <div id="modalAvatarPreview"
+                        style="width: 100px; height: 100px; border-radius: 50%; background: #374151; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; font-size: 2rem; overflow: hidden; border: 3px solid var(--accent-blue);">
+                        <!-- Avatar -->
+                    </div>
+                    <label for="modalAvatarInput"
+                        style="cursor: pointer; color: var(--accent-blue); font-size: 0.9rem; text-decoration: underline;">Cambiar
+                        Foto</label>
+                    <input type="file" id="modalAvatarInput" accept="image/*" style="display: none;">
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Nombre Completo</label>
+                    <input type="text" id="modalProfileName" class="input-control" required>
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Teléfono / Contacto</label>
+                    <input type="text" id="modalProfileTelefono" class="input-control" placeholder="Ej. +503 7777-7777">
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Nueva Contraseña (Opcional)</label>
+                    <input type="password" id="modalProfilePass" class="input-control"
+                        placeholder="Dejar en blanco para no cambiar">
+                </div>
+
+                <div class="input-group" style="margin: 0; display: flex; align-items: center; gap: 10px;"
+                    id="modalProfilePrivateContainer">
+                    <input type="checkbox" id="modalProfilePrivate" style="width: auto;">
+                    <label for="modalProfilePrivate"
+                        style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">Mantener mis datos privados
+                        (Ocultar foto y teléfono al público)</label>
+                </div>
+
+                <button type="submit" class="btn-primary" style="margin-top: 10px;">Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Lógica del Modal
+        const profileModal = document.getElementById('profileModal');
+        const userProfileBtn = document.querySelector('.user-profile');
+
+        if (userProfileBtn) {
+            userProfileBtn.style.cursor = 'pointer';
+            userProfileBtn.title = "Clic para editar perfil";
+            userProfileBtn.addEventListener('click', () => {
+                const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+                if (sessionUser) {
+                    document.getElementById('modalProfileName').value = sessionUser.nombre;
+                    document.getElementById('modalProfileTelefono').value = sessionUser.telefono || '';
+                    document.getElementById('modalProfilePrivate').checked = sessionUser.is_private === 1;
+
+                    // Ocultar la opción de privado si es super admin o admin, para que ellos siempre sean públicos
+                    if (sessionUser.rol === 'admin' || sessionUser.rol === 'super_admin') {
+                        document.getElementById('modalProfilePrivateContainer').style.display = 'none';
+                    } else {
+                        document.getElementById('modalProfilePrivateContainer').style.display = 'flex';
+                    }
+
+                    if (sessionUser.avatar_url) {
+                        document.getElementById('modalAvatarPreview').innerHTML = `<img src="${sessionUser.avatar_url}" style="width:100%; height:100%; object-fit:cover;">`;
+                    } else {
+                        document.getElementById('modalAvatarPreview').innerText = sessionUser.nombre.charAt(0);
+                    }
+                }
+                profileModal.style.display = 'flex';
+            });
+        }
+
+        let selectedAvatarFile = null;
+        document.getElementById('modalAvatarInput').addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                selectedAvatarFile = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('modalAvatarPreview').innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover;">`;
+                };
+                reader.readAsDataURL(selectedAvatarFile);
+            }
+        });
+
+        document.getElementById('modalProfileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+            const formData = new FormData();
+            formData.append('userId', sessionUser.id);
+            formData.append('nombre', document.getElementById('modalProfileName').value);
+            formData.append('telefono', document.getElementById('modalProfileTelefono').value);
+
+            // Si el contenedor está oculto (admin/super_admin), se enviará como no privado por defecto.
+            const isPrivate = document.getElementById('modalProfilePrivateContainer').style.display === 'none' ? false : document.getElementById('modalProfilePrivate').checked;
+            formData.append('is_private', isPrivate);
+
+            try {
+                let updates = {
+                    nombre: document.getElementById('modalProfileName').value,
+                    telefono: document.getElementById('modalProfileTelefono').value,
+                    is_private: document.getElementById('modalProfilePrivateContainer').style.display === 'none' ? false : document.getElementById('modalProfilePrivate').checked
+                };
+
+                const pass = document.getElementById('modalProfilePass').value;
+                if (pass) updates.password = pass;
+
+                if (selectedAvatarFile) {
+                    const avatarUrl = await uploadToSupabase(selectedAvatarFile, 'avatars');
+                    updates.avatar_url = avatarUrl;
+                }
+
+                const { data, error } = await supabase
+                    .from('users')
+                    .update(updates)
+                    .eq('id', sessionUser.id)
+                    .select()
+                    .single();
+
+                if (!error && data) {
+                    sessionStorage.setItem('user', JSON.stringify(data));
+                    alert('Perfil actualizado.');
+                    window.location.reload();
+                } else {
+                    alert('Error actualizando perfil en Supabase');
+                }
+            } catch (e) { console.error(e); alert('Error actualizando perfil'); }
+        });
+    </script>
+
+    <script>
+        // Dinamica del Sidebar Profile
+        document.addEventListener('DOMContentLoaded', () => {
+            const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+            if (sessionUser) {
+                const sName = document.getElementById('sidebarName');
+                const sRole = document.getElementById('sidebarRole');
+                const sAvatar = document.getElementById('sidebarAvatar');
+                if (sName) sName.innerText = sessionUser.nombre;
+                if (sRole) sRole.innerText = sessionUser.rol === 'super_admin' ? 'Super Admin' : (sessionUser.rol === 'admin' ? 'Administrador' : 'Docente');
+                if (sAvatar) {
+                    if (sessionUser.avatar_url) {
+                        sAvatar.innerHTML = `<img src="${sessionUser.avatar_url}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+                    } else {
+                        sAvatar.innerHTML = `<span style="font-size: 1.2rem; color: white;">${sessionUser.nombre.charAt(0).toUpperCase()}</span>`;
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

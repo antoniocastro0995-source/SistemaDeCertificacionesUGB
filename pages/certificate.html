@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificación | UGB Certificaciones</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+
+    <!-- Supabase SDK & Config -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabase-config.js"></script>
+
+    <!-- Librería html2pdf simulada o CDN real para descargar PDFs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+
+<body>
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <button class="mobile-toggle" id="mobileToggle">☰</button>
+
+    <div class="dashboard-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand" style="text-align:center; margin-bottom: 20px;">
+                <img src="../logo/logoUGB.png" alt="UGB Logo" style="max-width: 150px; height: auto;">
+            </div>
+            <nav>
+                <ul class="nav-menu">
+                    <li><a href="student-dashboard.html" class="nav-item">Progreso General</a></li>
+                    <li><a href="modules.html" class="nav-item">Módulos y Temario</a></li>
+                    <li><a href="exams.html" class="nav-item">Evaluaciones</a></li>
+                    <li><a href="certificate.html" class="nav-item active">Certificación</a></li>
+                    <li><a href="mentors.html" class="nav-item">Contacto Mentores</a></li>
+                </ul>
+            </nav>
+            <div class="user-profile" title="Clic para editar perfil" style="cursor: pointer;"
+                id="sidebarProfileContainer">
+                <div class="avatar" id="sidebarAvatar"
+                    style="overflow: hidden; display: flex; justify-content: center; align-items: center;">?</div>
+                <div>
+                    <div id="sidebarName" style="font-weight: 500; color: var(--text-primary);">Usuario</div>
+                    <div id="sidebarRole" style="font-size: 0.8rem; color: var(--text-secondary);">Rol</div>
+                </div>
+            </div>
+            <a href="../index.html" class="nav-item" style="color: #f87171;">Cerrar Sesión</a>
+        </aside>
+
+        <main class="main-content">
+            <header class="header-top">
+                <div>
+                    <h1 style="font-size: 2rem;">Obtención del Certificado</h1>
+                    <p style="color: var(--text-secondary); margin-top: 5px;">Descarga tu certificado firmado cuando el
+                        Administrador lo valide.</p>
+                </div>
+            </header>
+
+            <div class="bento-grid">
+                <div class="glass-panel card span-3" id="certContainer">
+                    <h2 class="card-title text-gradient">Estado Actual: Evaluando</h2>
+
+                    <!-- Simulación de estado en proceso -->
+                    <div id="enProcesoView"
+                        style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; text-align: center;">
+                        <style>
+                            @keyframes float-spin {
+                                0% {
+                                    transform: translateY(0) rotate(0deg);
+                                }
+
+                                50% {
+                                    transform: translateY(-15px) rotate(180deg);
+                                    text-shadow: 0 0 30px rgba(251, 191, 36, 0.8);
+                                }
+
+                                100% {
+                                    transform: translateY(0) rotate(360deg);
+                                }
+                            }
+
+                            .anim-hourglass {
+                                display: inline-block;
+                                animation: float-spin 3s infinite ease-in-out;
+                                filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.4));
+                            }
+                        </style>
+                        <span class="anim-hourglass" style="font-size: 5rem;">⏳</span>
+                        <h3 style="margin: 20px 0; font-size: 1.5rem; text-shadow: 0 0 10px rgba(255,255,255,0.2);"
+                            id="certStatusTitle">Tu certificado se está tramitando.</h3>
+                        <p style="color: var(--text-secondary); max-width: 400px; line-height: 1.5;"
+                            id="certStatusDesc">Debes alcanzar un 100% en todos tus módulos para habilitar la descarga.
+                        </p>
+                    </div>
+
+                    <!-- Estructura oculta del certificado para cuando se apruebe -->
+                    <div id="aprobadoView" style="display: none; flex-direction: column; align-items: center;">
+                        <div id="diplomaElement"
+                            style="background: white; color: black; width: 100%; max-width: 800px; padding: 40px; border: 10px solid #2563eb; text-align: center; font-family: 'Times New Roman', serif;">
+                            <h1 style="color: #1e3a8a; font-size: 3rem; margin-bottom: 20px;">CERTIFICADO DE APROBACIÓN
+                            </h1>
+                            <p style="font-size: 1.2rem; margin-bottom: 30px;">La Universidad Gerardo Barrios otorga el
+                                presente diploma a:</p>
+                            <h2 style="font-size: 2.5rem; margin-bottom: 30px; text-decoration: underline;"
+                                id="certName">Nombre del Docente</h2>
+                            <p style="font-size: 1.2rem; margin-bottom: 40px;">Por haber completado satisfactoriamente
+                                el "Proyecto de Horas Sociales: Formación Docente en Innovación Tecnológica Aplicada".
+                            </p>
+
+                            <div style="display: flex; justify-content: space-around; margin-top: 50px;">
+                                <div style="border-top: 1px solid black; width: 250px; padding-top: 10px;">Firma Super
+                                    Admin</div>
+                                <div style="border-top: 1px solid black; width: 250px; padding-top: 10px;">Sello UGB
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="descargarPDF()" class="btn-primary"
+                            style="margin-top: 30px; padding: 15px 30px; font-size: 1.1rem;">⬇ Descargar en PDF</button>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('mobileToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('open');
+        });
+
+        const currentUser = JSON.parse(sessionStorage.getItem('user'));
+        if (!currentUser) window.location.href = '../index.html';
+
+        document.getElementById('certName').innerText = currentUser.nombre;
+
+        async function verificarProgreso() {
+            try {
+                let { data: progress, error } = await supabase
+                    .from('progress')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .maybeSingle();
+
+                if (!progress && !error) {
+                    const { data: newProg } = await supabase.from('progress').insert([{ user_id: currentUser.id }]).select().single();
+                    progress = newProg;
+                }
+
+                if (!error && progress) {
+                    const isCertified = progress.is_certified === true || progress.is_certified === 1;
+                    if (progress.total_progress === 100 && isCertified) {
+                        // Aprobado y Validado por Admin
+                        document.getElementById('enProcesoView').style.display = 'none';
+                        document.getElementById('aprobadoView').style.display = 'flex';
+                        document.querySelector('.card-title').innerText = "¡Felicidades! Certificado Validado Oficialmente.";
+                    } else if (progress.total_progress === 100 && !isCertified) {
+                        // Aprobado pero NO validado
+                        document.getElementById('certStatusTitle').innerText = "Certificado en Revisión Manual";
+                        document.getElementById('certStatusTitle').style.color = "#fde047";
+                        document.getElementById('certStatusDesc').innerText = "Has alcanzado el 100%. Por favor espera a que el Super Administrador firme y valide tu certificado para poder descargarlo.";
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Función para descargar PDF
+        function descargarPDF() {
+            const element = document.getElementById('diplomaElement');
+            const opt = {
+                margin: 1,
+                filename: 'Certificado_UGB.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+
+            // New Promise-based usage:
+            html2pdf().set(opt).from(element).save();
+        }
+
+        verificarProgreso();
+    </script>
+
+    <!-- Perfil Modal (Glassmorphism) -->
+    <div class="modal-overlay" id="profileModal"
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="glass-panel" style="width: 90%; max-width: 400px; padding: 30px; position: relative;">
+            <button onclick="document.getElementById('profileModal').style.display='none'"
+                style="position: absolute; right: 20px; top: 20px; background: transparent; border: none; color: white; cursor: pointer; font-size: 1.2rem;">✖</button>
+            <h2 class="text-gradient" style="text-align: center; margin-bottom: 20px;">Mi Perfil</h2>
+
+            <form id="modalProfileForm" style="display: flex; flex-direction: column; gap: 15px;">
+                <div style="text-align: center;">
+                    <div id="modalAvatarPreview"
+                        style="width: 100px; height: 100px; border-radius: 50%; background: #374151; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; font-size: 2rem; overflow: hidden; border: 3px solid var(--accent-blue);">
+                        <!-- Avatar -->
+                    </div>
+                    <label for="modalAvatarInput"
+                        style="cursor: pointer; color: var(--accent-blue); font-size: 0.9rem; text-decoration: underline;">Cambiar
+                        Foto</label>
+                    <input type="file" id="modalAvatarInput" accept="image/*" style="display: none;">
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Nombre Completo</label>
+                    <input type="text" id="modalProfileName" class="input-control" required>
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Teléfono / Contacto</label>
+                    <input type="text" id="modalProfileTelefono" class="input-control" placeholder="Ej. +503 7777-7777">
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Nueva Contraseña (Opcional)</label>
+                    <input type="password" id="modalProfilePass" class="input-control"
+                        placeholder="Dejar en blanco para no cambiar">
+                </div>
+
+                <div class="input-group" style="margin: 0; display: flex; align-items: center; gap: 10px;"
+                    id="modalProfilePrivateContainer">
+                    <input type="checkbox" id="modalProfilePrivate" style="width: auto;">
+                    <label for="modalProfilePrivate"
+                        style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">Mantener mis datos privados
+                        (Ocultar foto y teléfono al público)</label>
+                </div>
+
+                <button type="submit" class="btn-primary" style="margin-top: 10px;">Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Lógica del Modal
+        const profileModal = document.getElementById('profileModal');
+        const userProfileBtn = document.querySelector('.user-profile');
+
+        if (userProfileBtn) {
+            userProfileBtn.style.cursor = 'pointer';
+            userProfileBtn.title = "Clic para editar perfil";
+            userProfileBtn.addEventListener('click', () => {
+                const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+                if (sessionUser) {
+                    document.getElementById('modalProfileName').value = sessionUser.nombre;
+                    document.getElementById('modalProfileTelefono').value = sessionUser.telefono || '';
+                    document.getElementById('modalProfilePrivate').checked = sessionUser.is_private === 1;
+
+                    // Ocultar la opción de privado si es super admin o admin
+                    if (sessionUser.rol === 'admin' || sessionUser.rol === 'super_admin') {
+                        document.getElementById('modalProfilePrivateContainer').style.display = 'none';
+                    } else {
+                        document.getElementById('modalProfilePrivateContainer').style.display = 'flex';
+                    }
+
+                    if (sessionUser.avatar_url) {
+                        document.getElementById('modalAvatarPreview').innerHTML = `<img src="${sessionUser.avatar_url}" style="width:100%; height:100%; object-fit:cover;">`;
+                    } else {
+                        document.getElementById('modalAvatarPreview').innerText = sessionUser.nombre.charAt(0);
+                    }
+                }
+                profileModal.style.display = 'flex';
+            });
+        }
+
+        let selectedAvatarFile = null;
+        document.getElementById('modalAvatarInput').addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                selectedAvatarFile = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('modalAvatarPreview').innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover;">`;
+                };
+                reader.readAsDataURL(selectedAvatarFile);
+            }
+        });
+
+        document.getElementById('modalProfileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+            const formData = new FormData();
+            formData.append('userId', sessionUser.id);
+            formData.append('nombre', document.getElementById('modalProfileName').value);
+            formData.append('telefono', document.getElementById('modalProfileTelefono').value);
+
+            const isPrivate = document.getElementById('modalProfilePrivateContainer').style.display === 'none' ? false : document.getElementById('modalProfilePrivate').checked;
+            formData.append('is_private', isPrivate);
+
+            const pass = document.getElementById('modalProfilePass').value;
+            if (pass) formData.append('password', pass);
+            if (selectedAvatarFile) formData.append('avatar', selectedAvatarFile);
+
+            try {
+                let updates = {
+                    nombre: document.getElementById('modalProfileName').value,
+                    telefono: document.getElementById('modalProfileTelefono').value,
+                    is_private: document.getElementById('modalProfilePrivateContainer').style.display === 'none' ? false : document.getElementById('modalProfilePrivate').checked
+                };
+
+                const pass = document.getElementById('modalProfilePass').value;
+                if (pass) updates.password = pass;
+
+                if (selectedAvatarFile) {
+                    const avatarUrl = await uploadToSupabase(selectedAvatarFile, 'avatars');
+                    updates.avatar_url = avatarUrl;
+                }
+
+                const { data, error } = await supabase
+                    .from('users')
+                    .update(updates)
+                    .eq('id', sessionUser.id)
+                    .select()
+                    .single();
+
+                if (!error && data) {
+                    sessionStorage.setItem('user', JSON.stringify(data));
+                    alert('Perfil actualizado.');
+                    window.location.reload();
+                } else {
+                    alert('Error actualizando perfil en Supabase');
+                }
+            } catch (e) { console.error(e); alert('Error actualizando perfil'); }
+        });
+    </script>
+
+    <script>
+        // Dinamica del Sidebar Profile
+        document.addEventListener('DOMContentLoaded', () => {
+            const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+            if (sessionUser) {
+                const sName = document.getElementById('sidebarName');
+                const sRole = document.getElementById('sidebarRole');
+                const sAvatar = document.getElementById('sidebarAvatar');
+                if (sName) sName.innerText = sessionUser.nombre;
+                if (sRole) sRole.innerText = sessionUser.rol === 'super_admin' ? 'Super Admin' : (sessionUser.rol === 'admin' ? 'Administrador' : 'Docente');
+                if (sAvatar) {
+                    if (sessionUser.avatar_url) {
+                        sAvatar.innerHTML = '<img src="' + sessionUser.avatar_url + '" style="width:100%; height:100%; object-fit:cover;">';
+                    } else {
+                        sAvatar.innerText = sessionUser.nombre.charAt(0).toUpperCase();
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

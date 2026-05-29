@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulos y Temario | UGB Certificaciones</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+
+    <!-- Supabase SDK & Config -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabase-config.js"></script>
+</head>
+
+<body>
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <button class="mobile-toggle" id="mobileToggle" aria-label="Abrir Menú">☰</button>
+
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="brand" style="text-align:center; margin-bottom: 20px;">
+                <img src="../logo/logoUGB.png" alt="UGB Logo" style="max-width: 150px; height: auto;">
+            </div>
+            <nav>
+                <ul class="nav-menu">
+                    <li><a href="student-dashboard.html" class="nav-item">Progreso General</a></li>
+                    <li><a href="modules.html" class="nav-item active">Módulos y Temario</a></li>
+                    <li><a href="exams.html" class="nav-item">Evaluaciones</a></li>
+                    <li><a href="certificate.html" class="nav-item">Certificación</a></li>
+                    <li><a href="mentors.html" class="nav-item">Contacto Mentores</a></li>
+                </ul>
+            </nav>
+            <div class="user-profile" title="Clic para editar perfil" style="cursor: pointer;"
+                id="sidebarProfileContainer">
+                <div class="avatar" id="sidebarAvatar"
+                    style="overflow: hidden; display: flex; justify-content: center; align-items: center;">?</div>
+                <div>
+                    <div id="sidebarName" style="font-weight: 500; color: var(--text-primary);">Usuario</div>
+                    <div id="sidebarRole" style="font-size: 0.8rem; color: var(--text-secondary);">Rol</div>
+                </div>
+            </div>
+            <a href="../index.html" class="nav-item" style="color: #f87171;">Cerrar Sesión</a>
+        </aside>
+
+        <main class="main-content">
+            <header class="header-top">
+                <div>
+                    <h1 style="font-size: 2rem;">Módulos de Formación</h1>
+                    <p style="color: var(--text-secondary); margin-top: 5px;">Lee el contenido. Tu progreso se evaluará
+                        en la sección de Evaluaciones.</p>
+                </div>
+            </header>
+
+            <style>
+                .weeks-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                    gap: 15px;
+                    margin-top: 15px;
+                }
+
+                .week-card {
+                    background: rgba(0, 0, 0, 0.2);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 8px;
+                    padding: 15px;
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .week-title {
+                    font-weight: bold;
+                    color: var(--accent-blue);
+                    margin-bottom: 5px;
+                    font-size: 1.1rem;
+                }
+
+                .week-desc {
+                    font-size: 0.9rem;
+                    color: var(--text-secondary);
+                    margin-bottom: 15px;
+                    flex-grow: 1;
+                    line-height: 1.4;
+                }
+
+                .week-resources {
+                    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+                    padding-top: 10px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+
+                .resource-link {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 8px;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 6px;
+                    color: white;
+                    text-decoration: none;
+                    font-size: 0.85rem;
+                    transition: all 0.2s ease-in-out;
+                }
+
+                .resource-link:hover {
+                    background: rgba(37, 99, 235, 0.2);
+                    transform: translateX(3px);
+                }
+            </style>
+
+            <div class="bento-grid">
+                <!-- Module 1 -->
+                <div class="glass-panel card span-3">
+                    <h2 class="card-title text-gradient">Módulo 1: Office para la Gestión Docente (Agosto)</h2>
+                    <div class="weeks-grid">
+                        <div class="week-card">
+                            <div class="week-title">Semana 1</div>
+                            <div class="week-desc">Introducción, perder el miedo a la PC y Word básico.</div>
+                            <div class="week-resources" id="res-week-1"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                        <div class="week-card">
+                            <div class="week-title">Semana 2</div>
+                            <div class="week-desc">Word intermedio: Tablas, imágenes y formatos para exámenes.</div>
+                            <div class="week-resources" id="res-week-2"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                        <div class="week-card">
+                            <div class="week-title">Semana 3</div>
+                            <div class="week-desc">Excel inicial: Listas de asistencia y promedios simples.</div>
+                            <div class="week-resources" id="res-week-3"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                        <div class="week-card">
+                            <div class="week-title">Semana 4</div>
+                            <div class="week-desc">Excel aplicado: Gráficos de rendimiento para reuniones de padres.
+                            </div>
+                            <div class="week-resources" id="res-week-4"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Module 2 -->
+                <div class="glass-panel card span-3">
+                    <h2 class="card-title text-gradient">Módulo 2: Canva Diseño Creativo y Visual (Septiembre)</h2>
+                    <div class="weeks-grid">
+                        <div class="week-card">
+                            <div class="week-title">Semana 5</div>
+                            <div class="week-desc">Uso básico de Classroom.</div>
+                            <div class="week-resources" id="res-week-5"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                        <div class="week-card">
+                            <div class="week-title">Semana 6</div>
+                            <div class="week-desc">Primeros pasos en Canva: Elegir plantillas, cambiar textos,
+                                infografías y pósteres.</div>
+                            <div class="week-resources" id="res-week-6"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                        <div class="week-card">
+                            <div class="week-title">Semana 7</div>
+                            <div class="week-desc">Presentaciones animadas que parecen videos.</div>
+                            <div class="week-resources" id="res-week-7"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                        <div class="week-card">
+                            <div class="week-title">Semana 8</div>
+                            <div class="week-desc">Evaluación: Diseño de un recurso para una clase real (Trabajo en
+                                grupos).</div>
+                            <div class="week-resources" id="res-week-8"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Module 3 -->
+                <div class="glass-panel card span-3">
+                    <h2 class="card-title text-gradient">Módulo 3: Web 2.0 e IA Aplicada (Octubre)</h2>
+                    <div class="weeks-grid">
+                        <div class="week-card">
+                            <div class="week-title">Semana 9</div>
+                            <div class="week-desc">Búsqueda avanzada: Cómo Googlear como un profesional.</div>
+                            <div class="week-resources" id="res-week-9"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                        <div class="week-card">
+                            <div class="week-title">Semana 10</div>
+                            <div class="week-desc">Recursos educativos: YouTube, simuladores y bibliotecas.</div>
+                            <div class="week-resources" id="res-week-10"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                        <div class="week-card">
+                            <div class="week-title">Semana 11</div>
+                            <div class="week-desc">IA Básica (ChatGPT): Cómo pedirle que planee una clase.</div>
+                            <div class="week-resources" id="res-week-11"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                        <div class="week-card">
+                            <div class="week-title">Semana 12</div>
+                            <div class="week-desc">IA para evaluar: Rúbricas y retroalimentación rápida.</div>
+                            <div class="week-resources" id="res-week-12"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                        <div class="week-card">
+                            <div class="week-title">Semana 13</div>
+                            <div class="week-desc">Creación de unidad didáctica apoyada en IA.</div>
+                            <div class="week-resources" id="res-week-13"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Module 4 -->
+                <div class="glass-panel card span-3">
+                    <h2 class="card-title text-gradient">Módulo 4: Ciberseguridad Docente (Noviembre)</h2>
+                    <div class="weeks-grid">
+                        <div class="week-card">
+                            <div class="week-title">Semana 14</div>
+                            <div class="week-desc">Simulación de Hacking: ¿Cómo nos roban los datos?</div>
+                            <div class="week-resources" id="res-week-14"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                        <div class="week-card">
+                            <div class="week-title">Semana 15</div>
+                            <div class="week-desc">Seguridad en redes, contraseñas y cierre del curso.</div>
+                            <div class="week-resources" id="res-week-15"><span
+                                    style="color:var(--text-secondary);font-size:0.8rem;font-style:italic;">Sin recursos
+                                    aún</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('mobileToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('open');
+        });
+
+        // Cargar los recursos
+        async function loadModuleResources() {
+            try {
+                const { data: resources, error } = await supabase
+                    .from('module_resources')
+                    .select('*');
+
+                if (!error && resources) {
+                    const grouped = {};
+                    resources.forEach(r => {
+                        if (!grouped[r.week_id]) grouped[r.week_id] = [];
+                        grouped[r.week_id].push(r);
+                    });
+
+                    for (let w = 1; w <= 15; w++) {
+                        const container = document.getElementById(`res-week-${w}`);
+                        if (container && grouped[w]) {
+                            container.innerHTML = '';
+                            grouped[w].forEach(r => {
+                                const icon = r.type === 'file' ? '📄' : '🔗';
+                                const finalUrl = r.url; // Ya será la URL completa pública de Supabase
+                                const target = r.type === 'link' ? 'target="_blank" rel="noopener"' : 'target="_blank"';
+
+                                container.innerHTML += `
+                                    <a href="${finalUrl}" class="resource-link" ${target} title="${r.title}">
+                                        <span>${icon}</span>
+                                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.title}</span>
+                                    </a>
+                                `;
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Error al cargar recursos:", e);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadModuleResources);
+    </script>
+
+    <!-- Perfil Modal (Glassmorphism) -->
+    <div class="modal-overlay" id="profileModal"
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="glass-panel" style="width: 90%; max-width: 400px; padding: 30px; position: relative;">
+            <button onclick="document.getElementById('profileModal').style.display='none'"
+                style="position: absolute; right: 20px; top: 20px; background: transparent; border: none; color: white; cursor: pointer; font-size: 1.2rem;">✖</button>
+            <h2 class="text-gradient" style="text-align: center; margin-bottom: 20px;">Mi Perfil</h2>
+
+            <form id="modalProfileForm" style="display: flex; flex-direction: column; gap: 15px;">
+                <div style="text-align: center;">
+                    <div id="modalAvatarPreview"
+                        style="width: 100px; height: 100px; border-radius: 50%; background: #374151; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; font-size: 2rem; overflow: hidden; border: 3px solid var(--accent-blue);">
+                        <!-- Avatar -->
+                    </div>
+                    <label for="modalAvatarInput"
+                        style="cursor: pointer; color: var(--accent-blue); font-size: 0.9rem; text-decoration: underline;">Cambiar
+                        Foto</label>
+                    <input type="file" id="modalAvatarInput" accept="image/*" style="display: none;">
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Nombre Completo</label>
+                    <input type="text" id="modalProfileName" class="input-control" required>
+                </div>
+
+                <div class="input-group" style="margin: 0;">
+                    <label>Nueva Contraseña (Opcional)</label>
+                    <input type="password" id="modalProfilePass" class="input-control"
+                        placeholder="Dejar en blanco para no cambiar">
+                </div>
+
+                <button type="submit" class="btn-primary" style="margin-top: 10px;">Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Lógica del Modal
+        const profileModal = document.getElementById('profileModal');
+        const userProfileBtn = document.querySelector('.user-profile');
+
+        if (userProfileBtn) {
+            userProfileBtn.style.cursor = 'pointer';
+            userProfileBtn.title = "Clic para editar perfil";
+            userProfileBtn.addEventListener('click', () => {
+                const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+                if (sessionUser) {
+                    document.getElementById('modalProfileName').value = sessionUser.nombre;
+                    if (sessionUser.avatar_url) {
+                        document.getElementById('modalAvatarPreview').innerHTML = `<img src="${sessionUser.avatar_url}" style="width:100%; height:100%; object-fit:cover;">`;
+                    } else {
+                        document.getElementById('modalAvatarPreview').innerText = sessionUser.nombre.charAt(0);
+                    }
+                }
+                profileModal.style.display = 'flex';
+            });
+        }
+
+        let selectedAvatarFile = null;
+        document.getElementById('modalAvatarInput').addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                selectedAvatarFile = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('modalAvatarPreview').innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover;">`;
+                };
+                reader.readAsDataURL(selectedAvatarFile);
+            }
+        });
+
+        document.getElementById('modalProfileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+            const formData = new FormData();
+            formData.append('userId', sessionUser.id);
+            formData.append('nombre', document.getElementById('modalProfileName').value);
+            const pass = document.getElementById('modalProfilePass').value;
+            if (pass) formData.append('password', pass);
+            if (selectedAvatarFile) formData.append('avatar', selectedAvatarFile);
+
+            try {
+                let updates = {
+                    nombre: document.getElementById('modalProfileName').value,
+                    telefono: document.getElementById('modalProfileTelefono').value,
+                    is_private: document.getElementById('modalProfilePrivateContainer').style.display === 'none' ? false : document.getElementById('modalProfilePrivate').checked
+                };
+
+                const pass = document.getElementById('modalProfilePass').value;
+                if (pass) updates.password = pass;
+
+                if (selectedAvatarFile) {
+                    const avatarUrl = await uploadToSupabase(selectedAvatarFile, 'avatars');
+                    updates.avatar_url = avatarUrl;
+                }
+
+                const { data, error } = await supabase
+                    .from('users')
+                    .update(updates)
+                    .eq('id', sessionUser.id)
+                    .select()
+                    .single();
+
+                if (!error && data) {
+                    sessionStorage.setItem('user', JSON.stringify(data));
+                    alert('Perfil actualizado.');
+                    window.location.reload();
+                } else {
+                    alert('Error actualizando perfil en Supabase');
+                }
+            } catch (e) { console.error(e); alert('Error actualizando perfil'); }
+        });
+    </script>
+
+    <script>
+        // Dinamica del Sidebar Profile
+        document.addEventListener('DOMContentLoaded', () => {
+            const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+            if (sessionUser) {
+                const sName = document.getElementById('sidebarName');
+                const sRole = document.getElementById('sidebarRole');
+                const sAvatar = document.getElementById('sidebarAvatar');
+                if (sName) sName.innerText = sessionUser.nombre;
+                if (sRole) sRole.innerText = sessionUser.rol === 'admin' ? 'Administrador' : 'Docente';
+                if (sAvatar) {
+                    if (sessionUser.avatar_url) {
+                        sAvatar.innerHTML = '<img src="' + sessionUser.avatar_url + '" style="width:100%; height:100%; object-fit:cover;">';
+                    } else {
+                        sAvatar.innerText = sessionUser.nombre.charAt(0).toUpperCase();
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

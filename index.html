@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UGB Certificaciones | Iniciar Sesión</title>
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="./css/login.css">
+
+    <!-- Supabase SDK & Config -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase-config.js"></script>
+</head>
+
+<body>
+    <!-- Background Orbs -->
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- Login Container -->
+    <div class="login-container">
+        <div class="glass-panel login-card">
+            <div class="login-header">
+                <div class="brand-logo" style="display: flex; justify-content: center; margin-bottom: 15px;">
+                    <img src="./logo/logoUGB.png" alt="UGB Logo"
+                        style="height: 80px; object-fit: contain; filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255,255,255,0.3));">
+                </div>
+                <p style="text-align: center; color: var(--text-secondary);">Formación Docente: Innovación Tecnológica
+                </p>
+            </div>
+
+            <form class="login-form" id="loginForm">
+                <div class="input-group">
+                    <label for="username">Usuario Institucional</label>
+                    <input type="text" id="username" class="input-control" placeholder="ej. perez.juan@ugb.edu.sv"
+                        required>
+                </div>
+
+                <div class="input-group">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" class="input-control" placeholder="••••••••" required>
+                </div>
+
+                <a href="#" class="forgot-password"
+                    onclick="document.getElementById('recoveryModal').style.display='flex'">¿Olvidaste tu
+                    contraseña?</a>
+
+                <button type="submit" class="btn-primary btn-login">Ingresar al Sistema</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Password Recovery Modal (Preparado para Supabase) -->
+    <div class="modal-overlay" id="recoveryModal"
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(8px);">
+        <div class="glass-panel modal-card" style="width: 90%; max-width: 400px; padding: 30px;">
+            <div class="modal-header">
+                <h2 class="text-gradient">Recuperar Acceso</h2>
+                <p>Ingresa tu correo o usuario para recibir un enlace de recuperación.</p>
+            </div>
+            <form id="recoveryForm"
+                onsubmit="event.preventDefault(); document.getElementById('recoveryModal').style.display='none'; alert('Función lista para conectar con Supabase Auth.');">
+                <div class="input-group">
+                    <label>Correo Electrónico</label>
+                    <input type="email" class="input-control" placeholder="ej. perez.juan@ugb.edu.sv" required>
+                </div>
+                <button type="submit" class="btn-primary" style="margin-bottom: 10px;">Enviar Enlace Mágico</button>
+                <button type="button" class="btn-secondary" style="background: transparent;"
+                    onclick="document.getElementById('recoveryModal').style.display='none'">Cancelar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Force Password Change Modal -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="glass-panel modal-card">
+            <div class="modal-header">
+                <h2 class="text-gradient">Cambio de Contraseña</h2>
+                <p>Por seguridad, debes cambiar tu contraseña temporal en tu primer inicio de sesión.</p>
+            </div>
+            <form id="changePasswordForm">
+                <div class="input-group">
+                    <label for="newPassword">Nueva Contraseña</label>
+                    <input type="password" id="newPassword" class="input-control" required>
+                </div>
+                <div class="input-group">
+                    <label for="confirmPassword">Confirmar Contraseña</label>
+                    <input type="password" id="confirmPassword" class="input-control" required>
+                </div>
+                <button type="submit" class="btn-primary btn-login">Guardar y Continuar</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+</body>
+
+</html>
