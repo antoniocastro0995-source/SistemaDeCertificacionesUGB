@@ -242,13 +242,35 @@
         let examDraft = {};
         let aiFlag = false;
 
-        // Detección "Anti-IA" (Cambio de Pestaña/Ventana)
-        window.addEventListener('blur', () => {
+        // Detección "Anti-IA" Avanzada
+        function triggerAIFlag(reason) {
             const isExamActive = document.getElementById('examContent').style.display === 'block';
             if (isExamActive && !aiFlag) {
                 aiFlag = true;
                 if (activeModuleId) localStorage.setItem(`ai_flag_${userId}_${activeModuleId}`, 'true');
-                alert("⚠️ ADVERTENCIA DE SISTEMA ⚠️\n\nEl sistema ha detectado que has minimizado la ventana o cambiado de pestaña.\nEl uso de Inteligencia Artificial (ChatGPT, Gemini) u otras fuentes externas está prohibido durante la evaluación.\nPor favor, cierra todas las IAs o pestañas adicionales.\n\nEsta actividad quedará registrada y será notificada a tu Docente Administrador.");
+                alert(`⚠️ ADVERTENCIA DE SISTEMA ⚠️\n\nEl sistema ha detectado una anomalía: ${reason}.\nEl uso de Inteligencia Artificial o fuentes externas está prohibido.\n\nEsta actividad quedará registrada y será notificada a tu Docente Administrador.`);
+            }
+        }
+
+        window.addEventListener('blur', () => triggerAIFlag("Cambio de pestaña o ventana minimizada"));
+        
+        document.addEventListener('copy', (e) => {
+            if (document.getElementById('examContent').style.display === 'block') {
+                e.preventDefault();
+                triggerAIFlag("Intento de copiar contenido del examen");
+            }
+        });
+
+        document.addEventListener('paste', (e) => {
+            if (document.getElementById('examContent').style.display === 'block') {
+                e.preventDefault();
+                triggerAIFlag("Intento de pegar contenido externo");
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && document.getElementById('examContent').style.display === 'block') {
+                triggerAIFlag("Salida del modo Pantalla Completa");
             }
         });
         const attemptData = {};
@@ -403,6 +425,11 @@
         };
 
         document.getElementById('btnStartExam').addEventListener('click', async () => {
+            try {
+                await document.documentElement.requestFullscreen();
+            } catch (err) {
+                console.log("Error intentando entrar a pantalla completa:", err);
+            }
             document.getElementById('btnStartExam').style.display = "none";
             document.getElementById('examContent').style.display = "block";
 
@@ -599,7 +626,7 @@
             btnContainer.innerHTML = '<span style="color:var(--accent-blue);">Procesando y guardando evaluación...</span>';
 
             try {
-                let requiresManualReview = false;
+                let requiresManualReview = true;
                 let totalScore = 0;
                 let maxScore = 0;
 
@@ -617,7 +644,6 @@
                             pointsAwarded = q.points || 1;
                         }
                     } else if (q.type === 'link') {
-                        requiresManualReview = true;
                         studentAnswer = examDraft[`q_${q.id}_link`] || '';
                         const fileInput = document.getElementById(`file_q_${q.id}`);
                         if (fileInput && fileInput.files.length > 0) {
@@ -636,14 +662,13 @@
                 }
 
                 // Escalar a nota sobre 10
-                let finalGrade = maxScore > 0 ? (totalScore / maxScore) * 10 : 0;
-                if (requiresManualReview) finalGrade = 0; // Se calificará después por el docente
+                let finalGrade = 0; // Se calificará después por el docente
 
                 // Actualizar o Crear exam_attempts
                 const currentAttempt = attemptData[activeModuleId];
                 const newAttemptsCount = (currentAttempt.attempts || 0) + 1;
-                const newStatus = requiresManualReview ? 'pendiente_revision' : 'calificado';
-                const isPassed = !requiresManualReview && finalGrade >= 6;
+                const newStatus = 'pendiente_revision';
+                const isPassed = false;
 
                 let attemptId = null;
 
@@ -710,11 +735,10 @@
                 localStorage.removeItem(`timer_start_${userId}_${activeModuleId}`);
                 localStorage.removeItem(`ai_flag_${userId}_${activeModuleId}`);
 
-                if (requiresManualReview) {
-                    alert('Tu evaluación ha sido entregada con éxito.\nQuedará en estado "En Revisión" esperando la calificación de tu Docente.');
-                } else {
-                    alert(`Evaluación procesada automáticamente.\nNota obtenida: ${finalGrade.toFixed(2)}/10`);
-                }
+                // Evitar el falso positivo de blur al mostrar el alert de éxito
+                document.getElementById('examContent').style.display = 'none';
+
+                alert('Tu evaluación ha sido entregada con éxito.\nQuedará en estado "En Revisión" esperando la calificación de tu Docente.');
 
                 window.location.reload();
             } catch (err) {

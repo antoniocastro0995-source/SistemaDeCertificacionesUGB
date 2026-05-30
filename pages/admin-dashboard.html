@@ -926,7 +926,7 @@
         async function loadStats() {
             try {
                 // Obtener estudiantes y su progreso
-                const { data: students, error: errStudents } = await supabase.from('users').select('id, nombre, progress(total_progress)').eq('rol', 'estudiante');
+                const { data: students, error: errStudents } = await supabase.from('users').select('id, nombre, progress(total_progress)').eq('rol', 'docente');
                 // Obtener exam_attempts
                 const { data: attempts, error: errAttempts } = await supabase.from('exam_attempts').select('user_id, grade, status').eq('status', 'calificado');
 
@@ -1388,7 +1388,11 @@
         // ================= CALIFICADOR MANUAL =================
         async function loadPendingGrades() {
             try {
-                const { data: pending, error } = await supabase.from('exam_attempts').select('*, user:user_id(nombre)').eq('status', 'pendiente_revision');
+                const { data: pending, error } = await supabase.from('exam_attempts')
+                    .select('*, user:user_id(nombre)')
+                    .in('status', ['pendiente_revision', 'calificado'])
+                    .order('created_at', { ascending: false });
+                
                 const tbody = document.getElementById('tablePendingGrades');
                 tbody.innerHTML = '';
 
@@ -1396,22 +1400,58 @@
                     pending.forEach(a => {
                         const aiWarning = a.ai_flag ? `<br><span style="color: #f87171; font-size: 0.8rem; background: rgba(248,113,113,0.1); padding: 2px 6px; border-radius: 4px;">⚠️ Posible uso de IA</span>` : '';
                         const nombre = a.user ? a.user.nombre : 'Usuario';
+                        const statusTag = a.status === 'calificado' ? `<span style="color:#4ade80;">Calificado (${a.grade || 0}/10)</span>` : `<span style="color:#fbbf24;">Pendiente</span>`;
+                        const btnText = a.status === 'calificado' ? 'Modificar Nota' : 'Revisar y Calificar';
+                        const btnColor = a.status === 'calificado' ? '#8b5cf6' : '#3b82f6';
+
                         tbody.innerHTML += `
                             <tr>
-                                <td>Reciente</td>
+                                <td>Intento #${a.attempts}</td>
                                 <td>${nombre} ${aiWarning}</td>
                                 <td>Módulo ${a.module_id}</td>
-                                <td><span style="color:#fbbf24;">Pendiente</span></td>
-                                <td>
-                                    <button class="action-btn" style="background: #3b82f6;" onclick="openGradeModal(${a.id}, '${nombre}')">Revisar y Calificar</button>
+                                <td>${statusTag}</td>
+                                <td style="display: flex; gap: 5px; justify-content: center;">
+                                    <button class="action-btn" style="background: ${btnColor};" onclick="openGradeModal(${a.id}, '${nombre}')">${btnText}</button>
+                                    <button class="action-btn btn-danger" onclick="deleteAttempt(${a.id}, '${a.user_id}', ${a.module_id})">Eliminar</button>
                                 </td>
                             </tr>
                         `;
                     });
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay entregas pendientes de revisión.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay entregas para revisión.</td></tr>';
                 }
             } catch (e) { console.error(e); }
+        }
+
+        async function deleteAttempt(attemptId, userId, moduleId) {
+            if (!await glassConfirm("¿Seguro que deseas eliminar este examen? El intento, las respuestas y el progreso de este módulo serán reseteados a 0 para el docente.")) return;
+            try {
+                const { error } = await supabase.from('exam_attempts').delete().eq('id', attemptId);
+                if (!error) {
+                    const { data: progress } = await supabase.from('progress').select('*').eq('user_id', userId).single();
+                    if (progress) {
+                        let updates = {};
+                        updates[`module_${moduleId}_progress`] = 0;
+                        const newTotal = (
+                            (moduleId == 1 ? 0 : progress.module_1_progress) +
+                            (moduleId == 2 ? 0 : progress.module_2_progress) +
+                            (moduleId == 3 ? 0 : progress.module_3_progress) +
+                            (moduleId == 4 ? 0 : progress.module_4_progress)
+                        ) / 4;
+                        updates.total_progress = newTotal;
+                        
+                        // Si el nuevo progreso total no es 100%, revocar certificado
+                        if (newTotal < 100) updates.is_certified = false;
+
+                        await supabase.from('progress').update(updates).eq('user_id', userId);
+                    }
+                    await glassAlert("Examen eliminado y progreso reseteado.");
+                    loadPendingGrades();
+                    loadStats();
+                } else {
+                    await glassAlert("Error al eliminar.");
+                }
+            } catch (e) { await glassAlert("Error de conexión"); }
         }
 
         async function openGradeModal(attemptId, userName) {
@@ -1509,17 +1549,18 @@
                         is_passed: isPassed
                     }).eq('id', attemptId).select().single();
 
-                    // Update Progress if passed
-                    if (!error && isPassed && attemptInfo) {
+                    // Update Progress
+                    if (!error && attemptInfo) {
                         const { data: progress } = await supabase.from('progress').select('*').eq('user_id', attemptInfo.user_id).single();
                         if (progress) {
                             let updates = {};
-                            updates[`module_${attemptInfo.module_id}_progress`] = 100;
+                            const modProg = isPassed ? 100 : 0;
+                            updates[`module_${attemptInfo.module_id}_progress`] = modProg;
                             const newTotal = (
-                                (attemptInfo.module_id == 1 ? 100 : progress.module_1_progress) +
-                                (attemptInfo.module_id == 2 ? 100 : progress.module_2_progress) +
-                                (attemptInfo.module_id == 3 ? 100 : progress.module_3_progress) +
-                                (attemptInfo.module_id == 4 ? 100 : progress.module_4_progress)
+                                (attemptInfo.module_id == 1 ? modProg : progress.module_1_progress) +
+                                (attemptInfo.module_id == 2 ? modProg : progress.module_2_progress) +
+                                (attemptInfo.module_id == 3 ? modProg : progress.module_3_progress) +
+                                (attemptInfo.module_id == 4 ? modProg : progress.module_4_progress)
                             ) / 4;
                             updates.total_progress = newTotal;
                             await supabase.from('progress').update(updates).eq('user_id', attemptInfo.user_id);
